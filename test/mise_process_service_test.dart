@@ -99,4 +99,31 @@ void main() {
       output,
     );
   });
+
+  test(
+    'collectWindowsMiseShimCandidates puts MISE_DATA_DIR shims first',
+    () {
+      final candidates = collectWindowsMiseShimCandidates(
+        environment: const {
+          'MISE_DATA_DIR': r'D:\data\mise\mise-data',
+          'LOCALAPPDATA': r'C:\Users\demo\AppData\Local',
+          'USERPROFILE': r'C:\Users\demo',
+        },
+      );
+
+      expect(candidates.first, r'D:\data\mise\mise-data\shims');
+      expect(candidates, contains(r'C:\Users\demo\AppData\Local\mise\shims'));
+      expect(
+        candidates,
+        contains(r'C:\Users\demo\.local\share\mise\shims'),
+      );
+    },
+  );
+
+  test('looksLikeMiseShimsEntry recognizes custom MISE_DATA_DIR layout', () {
+    expect(looksLikeMiseShimsEntry(r'd:\data\mise\mise-data\shims'), isTrue);
+    expect(looksLikeMiseShimsEntry(r'c:\users\demo\appdata\local\mise\shims'), isTrue);
+    expect(looksLikeMiseShimsEntry(r'c:\some\other\bin'), isFalse);
+    expect(looksLikeMiseShimsEntry(r'd:\tools\scoop\shims'), isFalse);
+  });
 }
