@@ -315,15 +315,6 @@ class LocalMiseProcessService implements MiseProcessService {
       );
     }
 
-    final localAppData = Platform.environment['LOCALAPPDATA'];
-    if (localAppData == null || localAppData.isEmpty) {
-      return const WindowsShimPathStatus(
-        source: WindowsShimPathSource.missing,
-        detail: '当前还没法确认 Windows 终端是否已经接入 mise。可以先查看修复命令，按提示补齐后再重开终端。',
-      );
-    }
-
-    final shimPath = '$localAppData\\mise\\shims';
     final path = Platform.environment['PATH'] ?? '';
     final pathEntries = path
         .split(';')
@@ -331,13 +322,41 @@ class LocalMiseProcessService implements MiseProcessService {
         .where((entry) => entry.isNotEmpty)
         .toSet();
 
-    if (pathEntries.contains(_normalizeWindowsPathEntry(shimPath))) {
-      return WindowsShimPathStatus(
-        source: WindowsShimPathSource.present,
-        shimPath: shimPath,
+    // 收集候选 shims 路径，覆盖默认安装位置与自定义 MISE_DATA_DIR 的场景。
+    final candidateShimPaths = collectWindowsMiseShimCandidates(
+      environment: Platform.environment,
+    );
+
+    // 优先级 1：任一已知候选路径已在 PATH 中。
+    for (final candidate in candidateShimPaths) {
+      if (pathEntries.contains(_normalizeWindowsPathEntry(candidate))) {
+        return WindowsShimPathStatus(
+          source: WindowsShimPathSource.present,
+          shimPath: candidate,
+        );
+      }
+    }
+
+    // 优先级 2：启发式 - PATH 中存在形如 `...\mise*\shims` 的条目，
+    // 覆盖其他未识别的自定义安装位置（例如把 mise 装在非默认盘符下）。
+    for (final entry in pathEntries) {
+      if (looksLikeMiseShimsEntry(entry)) {
+        return WindowsShimPathStatus(
+          source: WindowsShimPathSource.present,
+          shimPath: entry,
+        );
+      }
+    }
+
+    // 真正缺失：选一个候选路径作为修复目标。
+    if (candidateShimPaths.isEmpty) {
+      return const WindowsShimPathStatus(
+        source: WindowsShimPathSource.missing,
+        detail: '当前还没法确认 Windows 终端是否已经接入 mise。可以先查看修复命令，按提示补齐后再重开终端。',
       );
     }
 
+    final shimPath = candidateShimPaths.first;
     return WindowsShimPathStatus(
       source: WindowsShimPathSource.missing,
       shimPath: shimPath,
@@ -939,6 +958,54 @@ Map<String, String> parseShellEnvironmentOutput(
   }
 
   return environment;
+}
+
+/// 收集 Windows 上 mise shims 的候选路径，按优先级排序。
+///
+/// 包含用户自定义的 `MISE_DATA_DIR`、Windows 默认安装位置
+/// (`%LOCALAPPDATA%\mise\shims`) 以及跨平台默认路径
+/// (`%USERPROFILE%\.local\share\mise\shims`)。任一候选路径出现在
+/// PATH 中即视为 shims 已接入，避免自定义数据目录时误报。
+List<String> collectWindowsMiseShimCandidates({
+  required Map<String, String> environment,
+}) {
+  final candidates = <String>[];
+
+  final dataDir = environment['MISE_DATA_DIR'];
+  if (dataDir != null && dataDir.isNotEmpty) {
+    candidates.add('$dataDir\\shims');
+  }
+
+  final localAppData = environment['LOCALAPPDATA'];
+  if (localAppData != null && localAppData.isNotEmpty) {
+    candidates.add('$localAppData\\mise\\shims');
+  }
+
+  final userProfile = environment['USERPROFILE'];
+  if (userProfile != null && userProfile.isNotEmpty) {
+    candidates.add('$userProfile\\.local\\share\\mise\\shims');
+  }
+
+  return candidates;
+}
+
+/// 启发式判断已规范化的 PATH 条目是否是 mise shims 目录。
+///
+/// 匹配形如 `...\mise\shims`、`...\mise-data\shims`、`...\mise_data\shims`
+/// 的路径，覆盖候选列表之外的其它自定义安装位置。输入应为经
+/// [_normalizeWindowsPathEntry] 处理过的小写反斜杠路径。
+bool looksLikeMiseShimsEntry(String normalizedEntry) {
+  if (!normalizedEntry.endsWith('\\shims')) {
+    return false;
+  }
+  final parent = normalizedEntry.substring(
+    0,
+    normalizedEntry.length - '\\shims'.length,
+  );
+  final lastSeparator = parent.lastIndexOf('\\');
+  final dirName =
+      lastSeparator >= 0 ? parent.substring(lastSeparator + 1) : parent;
+  return dirName == 'mise' || dirName.startsWith('mise');
 }
 
 String _extractDelimitedShellPayload(
