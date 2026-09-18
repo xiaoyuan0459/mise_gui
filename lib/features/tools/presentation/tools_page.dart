@@ -465,11 +465,7 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
   }
 
   String _globalConfigPath() {
-    final home = Platform.environment['HOME'];
-    if (home == null || home.isEmpty) {
-      return '~/.config/mise/config.toml';
-    }
-    return '$home/.config/mise/config.toml';
+    return resolveGlobalMiseConfigPath() ?? '~/.config/mise/config.toml';
   }
 
   Set<String> _extractAffectedToolIds(String command) {
@@ -2275,14 +2271,9 @@ class _MiniFact extends StatelessWidget {
 List<String> _affectedFilesForToolCommand(String command) {
   final normalized = command.toLowerCase();
   final files = <String>[];
-  final home = Platform.environment['HOME'];
 
   if (normalized.contains('mise use --global ')) {
-    if (home != null && home.isNotEmpty) {
-      files.add('$home/.config/mise/config.toml');
-    } else {
-      files.add('~/.config/mise/config.toml');
-    }
+    files.add(resolveGlobalMiseConfigPath() ?? '~/.config/mise/config.toml');
   } else if (normalized.contains('mise use ')) {
     files.add('${Directory.current.path}/mise.toml');
   }

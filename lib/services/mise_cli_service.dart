@@ -649,7 +649,7 @@ class LiveMiseCliService implements MiseCliService {
     }
 
     final path = source!.path!;
-    final isGlobal = path.contains('/.config/mise/config.toml');
+    final isGlobal = isGlobalMiseConfigPath(path);
 
     return [
       ToolProjectImpact(
@@ -735,7 +735,7 @@ class LiveMiseCliService implements MiseCliService {
 
     return switch (source.type) {
       'mise.toml' =>
-        (source.path?.contains('/.config/mise/') ?? false) ? '全局' : '项目',
+        (source.path != null && isGlobalMiseConfigPath(source.path!)) ? '全局' : '项目',
       _ => source.type,
     };
   }
@@ -759,7 +759,7 @@ class LiveMiseCliService implements MiseCliService {
       return '当前版本来自本地已安装列表，但还没有显式来源信息。';
     }
 
-    if (source!.path!.contains('/.config/mise/')) {
+    if (isGlobalMiseConfigPath(source!.path!)) {
       return '当前版本由全局 config.toml 或全局 mise.toml 决定，项目未覆盖时会直接继承。';
     }
 
@@ -790,7 +790,7 @@ class LiveMiseCliService implements MiseCliService {
     String version,
     MiseSourceRef? source,
   ) {
-    if (source?.path != null && source!.path!.contains('/.config/mise/')) {
+    if (source?.path != null && isGlobalMiseConfigPath(source!.path!)) {
       return 'mise use --global $tool@$version';
     }
     return _useCommand(tool, version);

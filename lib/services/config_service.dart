@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:mise_gui/models/app_models.dart';
+import 'package:mise_gui/services/mise_process_service.dart';
 
 class _RuntimeSettingDefinition {
   const _RuntimeSettingDefinition({
@@ -372,11 +373,7 @@ class LiveConfigService implements ConfigService {
     if (_globalConfigPathOverride case final path?) {
       return path;
     }
-    final home = Platform.environment['HOME'];
-    if (home == null || home.isEmpty) {
-      return '.config/mise/config.toml';
-    }
-    return '$home/.config/mise/config.toml';
+    return resolveGlobalMiseConfigPath() ?? '.config/mise/config.toml';
   }
 
   ConfigRuntimeSettingsData _buildRuntimeSettings({

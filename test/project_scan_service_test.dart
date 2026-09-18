@@ -60,6 +60,11 @@ class _FakeMiseQueryService implements MiseQueryService {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<MiseConfigListRef> fetchConfigList({String? workingDirectory}) async {
+    return const MiseConfigListRef(configs: []);
+  }
 }
 
 void main() {

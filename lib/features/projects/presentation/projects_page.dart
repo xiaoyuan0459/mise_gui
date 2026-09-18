@@ -396,9 +396,9 @@ class _ProjectsPageState extends ConsumerState<ProjectsPage> {
 
   List<String> _watchPaths(ProjectCoverageSnapshot snapshot) {
     final paths = <String>{};
-    final home = Platform.environment['HOME'];
-    if (home != null && home.isNotEmpty) {
-      paths.add('$home/.config/mise/config.toml');
+    final globalConfig = resolveGlobalMiseConfigPath();
+    if (globalConfig != null && globalConfig.isNotEmpty) {
+      paths.add(globalConfig);
     }
     for (final project in snapshot.projects) {
       paths.add(project.configPath);

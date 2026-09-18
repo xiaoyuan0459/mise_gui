@@ -843,15 +843,67 @@ bool _matchesNoProxy(String host, String? rawNoProxy) {
   return false;
 }
 
-String? _globalMiseConfigPath({String? homeDirectory}) {
-  final home =
-      homeDirectory ??
-      Platform.environment['HOME'] ??
-      Platform.environment['USERPROFILE'];
+/// 解析 mise 认定的全局配置文件路径。
+///
+/// 优先尊重 `MISE_GLOBAL_CONFIG_FILE` 与 `MISE_CONFIG_DIR` 这两个环境变量
+/// （这正是 mise 自己定位全局配置的依据），最后才回退到
+/// `$HOME/.config/mise/config.toml`（Windows 上回退到 `USERPROFILE`）。
+/// 返回 `null` 表示连 home 都无法确定。
+String? resolveGlobalMiseConfigPath({Map<String, String>? environment}) {
+  final env = environment ?? Platform.environment;
+
+  final explicitFile = env['MISE_GLOBAL_CONFIG_FILE'];
+  if (explicitFile != null && explicitFile.isNotEmpty) {
+    return explicitFile;
+  }
+
+  final configDir = env['MISE_CONFIG_DIR'];
+  if (configDir != null && configDir.isNotEmpty) {
+    return '$configDir/config.toml';
+  }
+
+  final home = env['HOME'] ?? env['USERPROFILE'];
   if (home == null || home.isEmpty) {
     return null;
   }
   return '$home/.config/mise/config.toml';
+}
+
+/// 判断给定的配置路径是否为全局配置（而非项目配置）。
+///
+/// 依据 [resolveGlobalMiseConfigPath] 解析出的真实路径，结合 `.config/mise`
+/// 目录名作为兜底判断，从而兼容 `\\\\` 与 `/` 两种分隔符。
+bool isGlobalMiseConfigPath(
+  String path, {
+  Map<String, String>? environment,
+}) {
+  final env = environment ?? Platform.environment;
+  final resolved = resolveGlobalMiseConfigPath(environment: env);
+  if (resolved != null && _samePath(path, resolved)) {
+    return true;
+  }
+
+  final normalized = path.replaceAll('\\', '/');
+  return normalized.contains('/.config/mise/');
+}
+
+bool _samePath(String a, String b) {
+  String normalize(String value) {
+    final result =
+        value.replaceAll('\\', '/').toLowerCase().replaceAll(RegExp(r'/+$'), '');
+    return result;
+  }
+
+  return normalize(a) == normalize(b);
+}
+
+String? _globalMiseConfigPath({String? homeDirectory}) {
+  final environment = {...Platform.environment};
+  if (homeDirectory != null && homeDirectory.isNotEmpty) {
+    environment['HOME'] = homeDirectory;
+    environment.putIfAbsent('USERPROFILE', () => homeDirectory);
+  }
+  return resolveGlobalMiseConfigPath(environment: environment);
 }
 
 String? _extractTomlSection(String? content, String sectionName) {

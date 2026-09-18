@@ -78,7 +78,7 @@ class LiveProjectScanService implements ProjectScanService {
         return const <ProjectRecord>[];
       }
 
-      final globalConfigPath = _globalConfigPath();
+      final globalConfigPath = await _probeGlobalConfigPath();
       final globalConfig = await _readFileIfExists(globalConfigPath) ?? '';
       final projectsByPath = <String, ProjectRecord>{};
 
@@ -390,12 +390,24 @@ class LiveProjectScanService implements ProjectScanService {
     return '暂时无法解析 mise 的生效版本，已按项目文件里的声明继续展示。';
   }
 
-  String _globalConfigPath() {
-    final home = Platform.environment['HOME'];
-    if (home == null || home.isEmpty) {
-      return '.config/mise/config.toml';
+  /// 优先用 mise 命令探明全局配置路径，失败时回退到环境变量解析。
+  Future<String> _probeGlobalConfigPath() async {
+    try {
+      final configList = await _queryService.fetchConfigList();
+      final globalPath = configList.globalConfigPathFor(
+        environment: Platform.environment,
+      );
+      if (globalPath != null && globalPath.isNotEmpty) {
+        return globalPath;
+      }
+    } catch (_) {
+      // 命令不可用时走下方环境变量兜底。
     }
-    return '$home/.config/mise/config.toml';
+    return _globalConfigPath();
+  }
+
+  String _globalConfigPath() {
+    return resolveGlobalMiseConfigPath() ?? '.config/mise/config.toml';
   }
 
   Future<String?> _readFileIfExists(String path) async {
@@ -576,7 +588,7 @@ class LiveProjectScanService implements ProjectScanService {
     if (sourcePath == workspaceConfigPath) {
       return '项目';
     }
-    if (sourcePath.contains('/.config/mise/')) {
+    if (isGlobalMiseConfigPath(sourcePath)) {
       return '全局';
     }
     return '解析结果';

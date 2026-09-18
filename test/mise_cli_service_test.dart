@@ -99,6 +99,11 @@ class _FakeQueryService implements MiseQueryService {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<MiseConfigListRef> fetchConfigList({String? workingDirectory}) async {
+    return const MiseConfigListRef(configs: []);
+  }
 }
 
 class _JavaRemoteQueryService extends _FakeQueryService {

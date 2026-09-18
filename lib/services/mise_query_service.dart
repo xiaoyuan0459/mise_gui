@@ -126,6 +126,47 @@ abstract class MiseQueryService {
     String subject, {
     String? workingDirectory,
   });
+
+  /// 读取 mise 认定的配置文件列表（全局 + 项目）。
+  ///
+  /// 内部执行 `mise config ls --json`，返回每条配置的路径与其中声明的工具。
+  /// 应用不应自行拼死路径；哪一条是全局配置由
+  /// [resolveGlobalMiseConfigPath] 结合环境变量 `MISE_GLOBAL_CONFIG_FILE` /
+  /// `MISE_CONFIG_DIR` 判定。
+  Future<MiseConfigListRef> fetchConfigList({String? workingDirectory});
+}
+
+class MiseConfigListRef {
+  const MiseConfigListRef({required this.configs});
+
+  final List<MiseConfigEntryRef> configs;
+
+  String? globalConfigPathFor({
+    required Map<String, String> environment,
+  }) {
+    for (final config in configs) {
+      if (isGlobalMiseConfigPath(config.path, environment: environment)) {
+        return config.path;
+      }
+    }
+    return null;
+  }
+
+  List<String> projectConfigPathsFor({
+    required Map<String, String> environment,
+  }) => configs
+      .where(
+        (config) =>
+            !isGlobalMiseConfigPath(config.path, environment: environment),
+      )
+      .map((config) => config.path)
+      .toList();
+}
+
+class MiseConfigEntryRef {
+  const MiseConfigEntryRef({required this.path});
+
+  final String path;
 }
 
 class CliMiseQueryService implements MiseQueryService {
@@ -324,6 +365,49 @@ class CliMiseQueryService implements MiseQueryService {
       stdout: _extractShellCommandOutput((result.stdout ?? '').toString()),
       stderr: (result.stderr ?? '').toString(),
     );
+  }
+
+  @override
+  Future<MiseConfigListRef> fetchConfigList({
+    String? workingDirectory,
+  }) async {
+    final result = await _processService.run(
+      MiseCommandRequest(
+        arguments: const ['config', 'ls', '--json'],
+        workingDirectory: workingDirectory,
+        allowNonZeroExit: true,
+      ),
+    );
+
+    MiseConfigListRef parse(String raw) {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const MiseConfigListRef(configs: []);
+      }
+      final entries = <MiseConfigEntryRef>[];
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) {
+          continue;
+        }
+        final path = item['path'];
+        if (path is String && path.isNotEmpty) {
+          entries.add(MiseConfigEntryRef(path: path));
+        }
+      }
+      return MiseConfigListRef(configs: entries);
+    }
+
+    if (result.isSuccess) {
+      return parse(result.stdout);
+    }
+
+    // 部分版本只支持表格输出或命令不可用，回退为无配置列表，
+    // 由调用方走环境变量兜底。
+    try {
+      return parse(result.stdout);
+    } catch (_) {
+      return const MiseConfigListRef(configs: []);
+    }
   }
 
   MiseSourceRef? _parseSource(Map<String, dynamic>? source) {
