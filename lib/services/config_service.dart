@@ -373,11 +373,17 @@ class LiveConfigService implements ConfigService {
     await file.writeAsString(_normalizeContent(nextContent));
   }
 
-  /// 优先用 `mise config ls --json` 命令探明全局配置路径，失败时回退环境变量解析。
+  /// 推断全局配置路径：先看显式环境变量，再跑命令推断，最后才兜底。
   Future<String> _probeGlobalConfigPath() async {
     if (_globalConfigPathOverride case final path?) {
       return path;
     }
+    // 1. 显式环境变量（MISE_GLOBAL_CONFIG_FILE / MISE_CONFIG_DIR）。
+    final explicit = explicitMiseGlobalConfigPath();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
+    }
+    // 2. 通过 `mise config ls --json` 推断真实全局配置。
     try {
       final configList = await _queryService?.fetchConfigList();
       final globalPath = configList?.globalConfigPathFor(
@@ -387,8 +393,9 @@ class LiveConfigService implements ConfigService {
         return globalPath;
       }
     } catch (_) {
-      // 命令不可用时走下方环境变量兜底。
+      // 命令不可用时走最终兜底。
     }
+    // 3. 最终兜底：HOME 拼接或字面默认。
     return resolveGlobalMiseConfigPath() ?? '.config/mise/config.toml';
   }
 

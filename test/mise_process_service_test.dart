@@ -126,4 +126,59 @@ void main() {
     expect(looksLikeMiseShimsEntry(r'c:\some\other\bin'), isFalse);
     expect(looksLikeMiseShimsEntry(r'd:\tools\scoop\shims'), isFalse);
   });
+
+  test('explicitMiseGlobalConfigPath prefers MISE_GLOBAL_CONFIG_FILE', () {
+    expect(
+      explicitMiseGlobalConfigPath(environment: const {
+        'MISE_GLOBAL_CONFIG_FILE': r'C:\conf\my-config.toml',
+        'MISE_CONFIG_DIR': r'C:\conf\mise',
+      }),
+      r'C:\conf\my-config.toml',
+    );
+    expect(
+      explicitMiseGlobalConfigPath(environment: const {
+        'MISE_CONFIG_DIR': r'/opt/mise-conf',
+      }),
+      '/opt/mise-conf/config.toml',
+    );
+    expect(
+      explicitMiseGlobalConfigPath(environment: const {'HOME': '/home/demo'}),
+      isNull,
+    );
+  });
+
+  test('resolveGlobalMiseConfigPath falls back to HOME when unset', () {
+    expect(
+      resolveGlobalMiseConfigPath(environment: const {'HOME': '/home/demo'}),
+      '/home/demo/.config/mise/config.toml',
+    );
+    expect(
+      resolveGlobalMiseConfigPath(environment: const {
+        'MISE_CONFIG_DIR': '/custom/mise',
+      }),
+      '/custom/mise/config.toml',
+    );
+  });
+
+  test('isGlobalMiseConfigPath detects resolved and .config/mise layouts', () {
+    expect(
+      isGlobalMiseConfigPath(
+        r'C:\home\demo\.config\mise\config.toml',
+        environment: const {'HOME': r'C:\home\demo'},
+      ),
+      isTrue,
+    );
+    expect(
+      isGlobalMiseConfigPath('/custom/mise/config.toml', environment: const {
+        'MISE_CONFIG_DIR': '/custom/mise',
+      }),
+      isTrue,
+    );
+    expect(
+      isGlobalMiseConfigPath('/repo/mise.toml', environment: const {
+        'HOME': '/home/demo',
+      }),
+      isFalse,
+    );
+  });
 }

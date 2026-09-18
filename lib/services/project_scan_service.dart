@@ -390,8 +390,12 @@ class LiveProjectScanService implements ProjectScanService {
     return '暂时无法解析 mise 的生效版本，已按项目文件里的声明继续展示。';
   }
 
-  /// 优先用 mise 命令探明全局配置路径，失败时回退到环境变量解析。
+  /// 推断全局配置路径：先看显式环境变量，再跑命令推断，最后才兜底。
   Future<String> _probeGlobalConfigPath() async {
+    final explicit = explicitMiseGlobalConfigPath();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
+    }
     try {
       final configList = await _queryService.fetchConfigList();
       final globalPath = configList.globalConfigPathFor(
@@ -401,7 +405,7 @@ class LiveProjectScanService implements ProjectScanService {
         return globalPath;
       }
     } catch (_) {
-      // 命令不可用时走下方环境变量兜底。
+      // 命令不可用时走最终兜底。
     }
     return _globalConfigPath();
   }

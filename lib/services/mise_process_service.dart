@@ -843,13 +843,12 @@ bool _matchesNoProxy(String host, String? rawNoProxy) {
   return false;
 }
 
-/// 解析 mise 认定的全局配置文件路径。
+/// 仅当用户显式通过环境变量设定全局配置时才返回对应路径。
 ///
-/// 优先尊重 `MISE_GLOBAL_CONFIG_FILE` 与 `MISE_CONFIG_DIR` 这两个环境变量
-/// （这正是 mise 自己定位全局配置的依据），最后才回退到
-/// `$HOME/.config/mise/config.toml`（Windows 上回退到 `USERPROFILE`）。
-/// 返回 `null` 表示连 home 都无法确定。
-String? resolveGlobalMiseConfigPath({Map<String, String>? environment}) {
+/// 只认 `MISE_GLOBAL_CONFIG_FILE` 与 `MISE_CONFIG_DIR`，两者都没设置时返回
+/// `null`。与 [resolveGlobalMiseConfigPath] 不同，这里不做 HOME 兜底，目的是
+/// 让调用方在"用户显式指定 → 命令推断 → 最终兜底"三档里区分出第一档。
+String? explicitMiseGlobalConfigPath({Map<String, String>? environment}) {
   final env = environment ?? Platform.environment;
 
   final explicitFile = env['MISE_GLOBAL_CONFIG_FILE'];
@@ -860,6 +859,23 @@ String? resolveGlobalMiseConfigPath({Map<String, String>? environment}) {
   final configDir = env['MISE_CONFIG_DIR'];
   if (configDir != null && configDir.isNotEmpty) {
     return '$configDir/config.toml';
+  }
+
+  return null;
+}
+
+/// 解析 mise 认定的全局配置文件路径。
+///
+/// 优先尊重 `MISE_GLOBAL_CONFIG_FILE` 与 `MISE_CONFIG_DIR` 这两个环境变量
+/// （这正是 mise 自己定位全局配置的依据），最后才回退到
+/// `$HOME/.config/mise/config.toml`（Windows 上回退到 `USERPROFILE`）。
+/// 返回 `null` 表示连 home 都无法确定。
+String? resolveGlobalMiseConfigPath({Map<String, String>? environment}) {
+  final env = environment ?? Platform.environment;
+
+  final explicit = explicitMiseGlobalConfigPath(environment: env);
+  if (explicit != null && explicit.isNotEmpty) {
+    return explicit;
   }
 
   final home = env['HOME'] ?? env['USERPROFILE'];
