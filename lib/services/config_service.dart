@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:mise_gui/models/app_models.dart';
 import 'package:mise_gui/services/mise_process_service.dart';
+import 'package:mise_gui/services/mise_query_service.dart';
 
 class _RuntimeSettingDefinition {
   const _RuntimeSettingDefinition({
@@ -67,9 +68,13 @@ abstract class ConfigService {
 }
 
 class LiveConfigService implements ConfigService {
-  const LiveConfigService({String? globalConfigPath})
-    : _globalConfigPathOverride = globalConfigPath;
+  const LiveConfigService({
+    MiseQueryService? queryService,
+    String? globalConfigPath,
+  }) : _queryService = queryService,
+       _globalConfigPathOverride = globalConfigPath;
 
+  final MiseQueryService? _queryService;
   final String? _globalConfigPathOverride;
 
   static const List<_RuntimeSettingDefinition> _runtimeSettingDefinitions = [
@@ -149,9 +154,9 @@ class LiveConfigService implements ConfigService {
     String? projectName,
     bool includeProjectConfig = true,
   }) async {
+    final globalPath = await _probeGlobalConfigPath();
     try {
       final sections = <ConfigSectionData>[];
-      final globalPath = _globalConfigPath();
       final resolvedProjectPath = includeProjectConfig
           ? (projectPath ?? _directoryPathFor(projectConfigPath))
           : null;
@@ -241,7 +246,6 @@ class LiveConfigService implements ConfigService {
         ),
       );
     } catch (error) {
-      final globalPath = _globalConfigPath();
       final resolvedProjectPath = includeProjectConfig
           ? (projectPath ?? _directoryPathFor(projectConfigPath))
           : null;
@@ -369,9 +373,21 @@ class LiveConfigService implements ConfigService {
     await file.writeAsString(_normalizeContent(nextContent));
   }
 
-  String _globalConfigPath() {
+  /// 优先用 `mise config ls --json` 命令探明全局配置路径，失败时回退环境变量解析。
+  Future<String> _probeGlobalConfigPath() async {
     if (_globalConfigPathOverride case final path?) {
       return path;
+    }
+    try {
+      final configList = await _queryService?.fetchConfigList();
+      final globalPath = configList?.globalConfigPathFor(
+        environment: Platform.environment,
+      );
+      if (globalPath != null && globalPath.isNotEmpty) {
+        return globalPath;
+      }
+    } catch (_) {
+      // 命令不可用时走下方环境变量兜底。
     }
     return resolveGlobalMiseConfigPath() ?? '.config/mise/config.toml';
   }

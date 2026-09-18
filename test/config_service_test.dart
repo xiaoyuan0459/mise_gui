@@ -3,6 +3,76 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mise_gui/models/app_models.dart';
 import 'package:mise_gui/services/config_service.dart';
+import 'package:mise_gui/services/mise_query_service.dart';
+
+class _FakeQueryService implements MiseQueryService {
+  const _FakeQueryService(this.globalConfigPath);
+
+  final String globalConfigPath;
+
+  @override
+  Future<MiseConfigListRef> fetchConfigList({String? workingDirectory}) async {
+    return MiseConfigListRef(
+      configs: [
+        MiseConfigEntryRef(path: globalConfigPath),
+        const MiseConfigEntryRef(path: '/tmp/project/mise.toml'),
+      ],
+    );
+  }
+
+  @override
+  Future<Map<String, List<MiseInstalledToolVersionRef>>> fetchInstalledTools({
+    String? workingDirectory,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<MiseCurrentToolRef>> fetchCurrentTools({
+    String? workingDirectory,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchEnvironment({String? workingDirectory}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<MiseResolvedExecutableRef> fetchExecutable(
+    String subject, {
+    String? workingDirectory,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchOutdated({String? workingDirectory}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<MiseRemoteToolVersionRef>> fetchRemoteVersions(
+    String tool, {
+    String? workingDirectory,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchSettings({String? workingDirectory}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<MiseResolvedExecutableRef> fetchShellExecutable(
+    String subject, {
+    String? workingDirectory,
+  }) {
+    throw UnimplementedError();
+  }
+}
 
 void main() {
   test('runtime settings display TOML strings without quotes', () async {
@@ -161,5 +231,33 @@ void main() {
     expect(preview.nextContent, contains('no_proxy = "localhost,127.0.0.1"'));
     expect(preview.nextContent, contains('NO_PROXY = "localhost,127.0.0.1"'));
     expect(preview.nextContent, contains('[tools]\nnode = "20"'));
+  });
+
+  test('infers the global config path from mise config ls command', () async {
+    final tempDirectory = await Directory.systemTemp.createTemp(
+      'mise-config-ls-',
+    );
+    addTearDown(() async {
+      if (await tempDirectory.exists()) {
+        await tempDirectory.delete(recursive: true);
+      }
+    });
+    final globalDir = Directory('${tempDirectory.path}/.config/mise');
+    await globalDir.create(recursive: true);
+    final globalConfigFile = File('${globalDir.path}/config.toml');
+    await globalConfigFile.writeAsString('[settings]\nhttp_timeout = "15s"\n');
+
+    final service = LiveConfigService(
+      queryService: _FakeQueryService(globalConfigFile.path),
+    );
+    final workspace = await service.fetchWorkspace(includeProjectConfig: false);
+
+    expect(workspace.documents.first.path, globalConfigFile.path);
+    expect(
+      workspace.runtimeSettings!.settings
+          .firstWhere((setting) => setting.key == 'http_timeout')
+          .value,
+      '15s',
+    );
   });
 }
