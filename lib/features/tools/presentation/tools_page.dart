@@ -1531,47 +1531,79 @@ class _ToolWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ToolHeroPanel(
-          tool: tool,
-          onRetryDetail: onRetryDetail,
-          onOpenPreview: onOpenPreview,
-        ),
-        const SizedBox(height: 12),
-        _VersionInventoryPanel(
-          title: '本机版本',
-          subtitle: '已安装到本机，可直接切换。',
-          toolId: tool.id,
-          toolName: tool.name,
-          inventoryType: _VersionInventoryType.installed,
-          versions: tool.installedVersions,
-          emptyState: const _PanelEmptyStateData(
-            icon: Icons.inventory_2_outlined,
-            title: '当前还没有本地版本库存',
-            message: '安装过至少一个版本后，这里会显示完整的本机版本列表。',
-            level: HealthLevel.info,
-          ),
-          onOpenPreview: onOpenPreview,
-        ),
-        const SizedBox(height: 12),
-        _VersionInventoryPanel(
-          title: '远端版本',
-          subtitle: '可安装或升级的远端版本。',
-          toolId: tool.id,
-          toolName: tool.name,
-          inventoryType: _VersionInventoryType.remote,
-          versions: tool.remoteVersions,
-          emptyState: const _PanelEmptyStateData(
-            icon: Icons.cloud_off_rounded,
-            title: '暂时没有拉到远端版本',
-            message: '可以稍后重试同步，或者先使用上面的本机版本库存继续切换。',
-            level: HealthLevel.warning,
-          ),
-          onOpenPreview: onOpenPreview,
-        ),
-      ],
+    final localPanel = _VersionInventoryPanel(
+      title: '本机版本',
+      subtitle: '已安装到本机，可直接切换。',
+      toolId: tool.id,
+      toolName: tool.name,
+      inventoryType: _VersionInventoryType.installed,
+      versions: tool.installedVersions,
+      emptyState: const _PanelEmptyStateData(
+        icon: Icons.inventory_2_outlined,
+        title: '当前还没有本地版本库存',
+        message: '安装过至少一个版本后，这里会显示完整的本机版本列表。',
+        level: HealthLevel.info,
+      ),
+      onOpenPreview: onOpenPreview,
+    );
+
+    final remotePanel = _VersionInventoryPanel(
+      title: '远端版本',
+      subtitle: '可安装或升级的远端版本。',
+      toolId: tool.id,
+      toolName: tool.name,
+      inventoryType: _VersionInventoryType.remote,
+      versions: tool.remoteVersions,
+      emptyState: const _PanelEmptyStateData(
+        icon: Icons.cloud_off_rounded,
+        title: '暂时没有拉到远端版本',
+        message: '可以稍后重试同步，或者先使用上面的本机版本库存继续切换。',
+        level: HealthLevel.warning,
+      ),
+      onOpenPreview: onOpenPreview,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 1180;
+
+        if (isWide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ToolHeroPanel(
+                tool: tool,
+                onRetryDetail: onRetryDetail,
+                onOpenPreview: onOpenPreview,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 10, child: localPanel),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 11, child: remotePanel),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ToolHeroPanel(
+              tool: tool,
+              onRetryDetail: onRetryDetail,
+              onOpenPreview: onOpenPreview,
+            ),
+            const SizedBox(height: 12),
+            localPanel,
+            const SizedBox(height: 12),
+            remotePanel,
+          ],
+        );
+      },
     );
   }
 }

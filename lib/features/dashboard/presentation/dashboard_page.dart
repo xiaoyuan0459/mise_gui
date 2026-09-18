@@ -191,15 +191,75 @@ class _DashboardOverview extends StatelessWidget {
 
   final DashboardSnapshot snapshot;
 
+  static const _columnGap = 20.0;
+  static const _sectionGap = 16.0;
+  static const _leftColumnWidth = 420.0;
+
+  SummaryMetric? get _systemMetric {
+    for (final metric in snapshot.metrics) {
+      if (metric.label == '当前系统') {
+        return metric;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 1280 && _systemMetric != null) {
+          return _buildWideColumns(context);
+        }
+        return _buildSingleColumn(context);
+      },
+    );
+  }
+
+  Widget _buildSingleColumn(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _DashboardMetricGrid(metrics: snapshot.metrics),
-        const SizedBox(height: 16),
+        const SizedBox(height: _sectionGap),
         const _MiseSelfUpdatePanel(),
-        const SizedBox(height: 16),
+        const SizedBox(height: _sectionGap),
         _RecentHistoryPanel(entries: snapshot.recentHistory),
+      ],
+    );
+  }
+
+  Widget _buildWideColumns(BuildContext context) {
+    final system = _systemMetric!;
+    final compactMetrics = snapshot.metrics
+        .where((metric) => metric.label != '当前系统')
+        .toList(growable: false);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: _leftColumnWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _DashboardMetricCard(metric: system),
+              const SizedBox(height: _sectionGap),
+              const _MiseSelfUpdatePanel(),
+            ],
+          ),
+        ),
+        const SizedBox(width: _columnGap),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _CompactMetricsGrid(metrics: compactMetrics),
+              const SizedBox(height: _sectionGap),
+              _RecentHistoryPanel(entries: snapshot.recentHistory),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -263,34 +323,12 @@ class _DashboardMetricGrid extends StatelessWidget {
           );
         }
 
-        final compactColumns = constraints.maxWidth >= 980
-            ? 3
-            : constraints.maxWidth >= 700
-            ? 2
-            : 1;
-        final compactWidth =
-            (constraints.maxWidth - spacing * (compactColumns - 1)) /
-            compactColumns;
-
         return Column(
           children: [
             _DashboardMetricCard(metric: systemMetric),
             if (compactMetrics.isNotEmpty) ...[
               const SizedBox(height: spacing),
-              Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: [
-                  for (final metric in compactMetrics)
-                    SizedBox(
-                      width: compactWidth,
-                      child: _DashboardMetricCard(
-                        metric: metric,
-                        compact: true,
-                      ),
-                    ),
-                ],
-              ),
+              _CompactMetricsGrid(metrics: compactMetrics, spacing: spacing),
             ],
           ],
         );
@@ -334,6 +372,44 @@ class _MetricWrap extends StatelessWidget {
             child: _DashboardMetricCard(metric: metric),
           ),
       ],
+    );
+  }
+}
+
+class _CompactMetricsGrid extends StatelessWidget {
+  const _CompactMetricsGrid({required this.metrics, this.spacing = 20.0});
+
+  final List<SummaryMetric> metrics;
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) {
+    if (metrics.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactColumns = constraints.maxWidth >= 980
+            ? 3
+            : constraints.maxWidth >= 700
+            ? 2
+            : 1;
+        final compactWidth =
+            (constraints.maxWidth - spacing * (compactColumns - 1)) /
+            compactColumns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final metric in metrics)
+              SizedBox(
+                width: compactWidth,
+                child: _DashboardMetricCard(metric: metric, compact: true),
+              ),
+          ],
+        );
+      },
     );
   }
 }

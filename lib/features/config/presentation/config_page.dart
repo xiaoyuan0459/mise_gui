@@ -251,55 +251,115 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                   document: document,
                 ),
               ),
-              if (workspace.runtimeSettings case final runtimeSettings?) ...[
-                const SizedBox(height: 12),
-                _RuntimeSettingsPanel(
-                  data: runtimeSettings,
-                  onEdit: () => _openRuntimeSettingsEditor(
-                    context: context,
-                    ref: ref,
-                    data: runtimeSettings,
-                  ),
-                ),
-              ],
-              if (workspace.proxySettings case final proxySettings?) ...[
-                const SizedBox(height: 12),
-                _ProxySettingsPanel(
-                  data: proxySettings,
-                  onEdit: () => _openProxySettingsEditor(
-                    context: context,
-                    ref: ref,
-                    data: proxySettings,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              for (final section in workspace.sections)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ConfigSection(
-                    section: section,
-                    onEditProxy:
-                        section.title == '运行时设置' &&
-                            workspace.proxySettings != null
-                        ? () => _openProxySettingsEditor(
-                            context: context,
-                            ref: ref,
-                            data: workspace.proxySettings!,
-                          )
-                        : null,
-                    onEditJavaAliases:
-                        section.title == 'Java 别名' && globalDocument != null
-                        ? () => _openJavaAliasesEditor(
-                            context: context,
-                            ref: ref,
-                            document: globalDocument!,
-                          )
-                        : null,
-                  ),
-                ),
+              const SizedBox(height: 16),
+              _buildWorkspaceGrid(
+                workspace: workspace,
+                globalDocument: globalDocument,
+              ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  /// 两栏分栏式的设置区布局：宽屏时「运行时 / 其它设置」与「网络代理 / 其它区段」并排。
+  Widget _buildWorkspaceGrid({
+    required ConfigWorkspaceData workspace,
+    required ConfigDocumentData? globalDocument,
+  }) {
+    // 运行时设置的信息已由下面的专用面板覆盖，把 sections 里重复的「运行时设置」收敛到左栏，
+    // 其余区段（全局工具 / Java 别名 / 项目工具）进入右栏。
+    ConfigSectionData? runtimeSection;
+    final otherSections = <ConfigSectionData>[];
+    for (final section in workspace.sections) {
+      if (section.title == '运行时设置') {
+        runtimeSection = section;
+      } else {
+        otherSections.add(section);
+      }
+    }
+
+    final runtimeSettings = workspace.runtimeSettings;
+    final proxySettings = workspace.proxySettings;
+
+    Widget runtimeEditor() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (runtimeSettings != null)
+          _RuntimeSettingsPanel(
+            data: runtimeSettings,
+            onEdit: () => _openRuntimeSettingsEditor(
+              context: context,
+              ref: ref,
+              data: runtimeSettings,
+            ),
+          ),
+        if (runtimeSection != null) ...[
+          const SizedBox(height: 12),
+          _RuntimeSectionSummary(section: runtimeSection),
+        ],
+      ],
+    );
+
+    Widget restColumn() {
+      final children = <Widget>[
+        if (proxySettings != null)
+          _ProxySettingsPanel(
+            data: proxySettings,
+            onEdit: () => _openProxySettingsEditor(
+              context: context,
+              ref: ref,
+              data: proxySettings,
+            ),
+          ),
+      ];
+      for (final section in otherSections) {
+        if (children.isNotEmpty) {
+          children.add(const SizedBox(height: 12));
+        }
+        children.add(
+          _ConfigSection(
+            section: section,
+            onEditJavaAliases:
+                section.title == 'Java 别名' && globalDocument != null
+                ? () => _openJavaAliasesEditor(
+                    context: context,
+                    ref: ref,
+                    document: globalDocument,
+                  )
+                : null,
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      );
+    }
+
+    final leftWidget = runtimeEditor();
+    final rightWidget = restColumn();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 920) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: leftWidget),
+              const SizedBox(width: 16),
+              Expanded(child: rightWidget),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            leftWidget,
+            const SizedBox(height: 16),
+            rightWidget,
+          ],
         );
       },
     );
@@ -924,12 +984,10 @@ class _ProxySettingTile extends StatelessWidget {
 class _ConfigSection extends StatelessWidget {
   const _ConfigSection({
     required this.section,
-    this.onEditProxy,
     this.onEditJavaAliases,
   });
 
   final ConfigSectionData section;
-  final VoidCallback? onEditProxy;
   final VoidCallback? onEditJavaAliases;
 
   @override
@@ -951,7 +1009,7 @@ class _ConfigSection extends StatelessWidget {
                   ),
           ),
           const SizedBox(height: 12),
-          _ConfigItemGroup(section: section, onEditProxy: onEditProxy),
+          _ConfigItemGroup(section: section),
           const SizedBox(height: 10),
           _ConfigRawPanel(content: section.rawSnippet),
         ],
@@ -961,10 +1019,9 @@ class _ConfigSection extends StatelessWidget {
 }
 
 class _ConfigItemGroup extends StatelessWidget {
-  const _ConfigItemGroup({required this.section, this.onEditProxy});
+  const _ConfigItemGroup({required this.section});
 
   final ConfigSectionData section;
-  final VoidCallback? onEditProxy;
 
   @override
   Widget build(BuildContext context) {
@@ -974,12 +1031,7 @@ class _ConfigItemGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var index = 0; index < section.items.length; index++) ...[
-          _ConfigItemRow(
-            item: section.items[index],
-            onEditProxy: section.items[index].label == '代理环境变量'
-                ? onEditProxy
-                : null,
-          ),
+          _ConfigItemRow(item: section.items[index]),
           if (index != section.items.length - 1)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -996,10 +1048,9 @@ class _ConfigItemGroup extends StatelessWidget {
 }
 
 class _ConfigItemRow extends StatelessWidget {
-  const _ConfigItemRow({required this.item, this.onEditProxy});
+  const _ConfigItemRow({required this.item});
 
   final ConfigItem item;
-  final VoidCallback? onEditProxy;
 
   @override
   Widget build(BuildContext context) {
@@ -1037,14 +1088,6 @@ class _ConfigItemRow extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              if (onEditProxy != null) ...[
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: onEditProxy,
-                  icon: const Icon(Icons.public_rounded, size: 18),
-                  label: Text(item.value == '未配置' ? '设置代理' : '调整代理'),
-                ),
-              ],
             ],
           ),
         ),
@@ -1307,6 +1350,59 @@ class _ConfigRawPanel extends StatelessWidget {
           style: TextStyle(color: colors.textMuted, fontSize: 12),
         ),
         children: [_CodePanel(title: 'TOML', content: content, height: 320)],
+      ),
+    );
+  }
+}
+
+/// 运行时设置里未在上方专用面板覆盖的其余项（如 Java 发行版）+ 原始配置。
+///
+/// 在"两栏分栏"布局中收敛原本重复出现的「运行时设置」section：HTTP 超时 / HTTP 重试
+/// 已由运行时设置面板展示，代理由网络代理面板承担，这里只保留剩余项并附原始 TOML。
+class _RuntimeSectionSummary extends StatelessWidget {
+  const _RuntimeSectionSummary({required this.section});
+
+  final ConfigSectionData section;
+
+  static const Set<String> _excludedLabels = {
+    'HTTP 超时',
+    'HTTP 重试',
+    '代理环境变量',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final items = section.items
+        .where((item) => !_excludedLabels.contains(item.label))
+        .toList(growable: false);
+
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PanelHeader(
+            title: '其它设置',
+            description: '这里展示运行时设置中未在上方直接编辑的项，以及对应的原始配置。',
+          ),
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            for (var index = 0; index < items.length; index++) ...[
+              _ConfigItemRow(item: items[index]),
+              if (index != items.length - 1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: colors.border.withValues(alpha: 0.9),
+                  ),
+                ),
+            ],
+          ],
+          const SizedBox(height: 12),
+          _ConfigRawPanel(content: section.rawSnippet),
+        ],
       ),
     );
   }
