@@ -75,6 +75,29 @@ class _FakeQueryService implements MiseQueryService {
 }
 
 void main() {
+  test('buildManagedToolsConfigContent rebuilds [tools] and keeps other sections', () {
+    const current = '[env]\nFOO="bar"\n\n[tools]\nnode="20"\n';
+    final next = buildManagedToolsConfigContent(
+      currentContent: current,
+      tools: const {'node': '22', 'python': '3.12'},
+    );
+    expect(next, contains('[env]'));
+    expect(next, contains(r'FOO="bar"'));
+    expect(next, contains('[tools]'));
+    expect(next, contains('node = "22"'));
+    expect(next, contains('python = "3.12"'));
+  });
+
+  test('buildManagedToolsConfigContent removes tools omitted from selection', () {
+    const current = '[tools]\nnode="20"\ngo="1.22"\n';
+    final next = buildManagedToolsConfigContent(
+      currentContent: current,
+      tools: const {'go': '1.23'},
+    );
+    expect(next, isNot(contains('node')));
+    expect(next, contains('go = "1.23"'));
+  });
+
   test('runtime settings display TOML strings without quotes', () async {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'mise-config-service-',

@@ -244,6 +244,10 @@ class LiveConfigService implements ConfigService {
           document: globalDocument,
           content: globalConfig,
         ),
+        managedTools: await _buildManagedTools(
+          document: globalDocument,
+          content: globalConfig,
+        ),
       );
     } catch (error) {
       final resolvedProjectPath = includeProjectConfig
@@ -397,6 +401,61 @@ class LiveConfigService implements ConfigService {
     }
     // 3. 最终兜底：HOME 拼接或字面默认。
     return resolveGlobalMiseConfigPath() ?? '.config/mise/config.toml';
+  }
+
+  /// 组装"管理的工具与版本"：全局 [tools] 已声明 + 本机已安装 + 远端可用。
+  ///
+  /// 任何命令/查询失败都回退为空，绝不向上抛（避免整个工作区加载进入错误分支）。
+  Future<ConfigManagedToolsData?> _buildManagedTools({
+    required ConfigDocumentData document,
+    required String? content,
+  }) async {
+    final query = _queryService;
+    if (query == null) {
+      return null;
+    }
+    try {
+      final declared = _parseAssignments(_extractSection(content, 'tools'));
+      final installed = await query.fetchInstalledTools();
+      final installedByTool = <String, List<String>>{
+        for (final entry in installed.entries)
+          entry.key: entry.value.map((item) => item.version).toList(),
+      };
+
+      final tools = <String>{
+        ...declared.keys,
+        ...installedByTool.keys,
+      };
+      if (tools.isEmpty) {
+        return null;
+      }
+
+      final remoteByTool = <String, List<String>>{};
+      for (final tool in tools) {
+        try {
+          final list = await query.fetchRemoteVersions(tool);
+          remoteByTool[tool] = list.map((item) => item.version).toList();
+        } catch (_) {
+          remoteByTool[tool] = const [];
+        }
+      }
+
+      final entries = <ConfigManagedToolEntry>[
+        for (final tool in tools.toList()..sort())
+          ConfigManagedToolEntry(
+            tool: tool,
+            declaredVersion: declared[tool],
+            installedVersions: installedByTool[tool] ?? const [],
+            remoteVersions: remoteByTool[tool] ?? const [],
+          ),
+      ];
+      if (entries.isEmpty) {
+        return null;
+      }
+      return ConfigManagedToolsData(document: document, entries: entries);
+    } catch (_) {
+      return null;
+    }
   }
 
   ConfigRuntimeSettingsData _buildRuntimeSettings({
@@ -1091,4 +1150,71 @@ class MockConfigService implements ConfigService {
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 120));
   }
+}
+
+/// 根据「管理的工具与版本」选择，重建全局配置中的 `[tools]` 段。
+///
+/// `tools` 传入 tool -> 版本；不包含在内（或为空）的工具不再声明。
+/// 不会改动配置里 `[tools]` 之外的任何内容。
+String buildManagedToolsConfigContent({
+  required String currentContent,
+  required Map<String, String> tools,
+}) {
+  final normalized = currentContent.replaceAll('\r\n', '\n').trimRight();
+  final lines = normalized.isEmpty
+      ? <String>[]
+      : const LineSplitter().convert(normalized);
+
+  final start = _indexOfTomlHeader(lines, 'tools');
+  final List<String> next;
+  if (start == -1) {
+    next = [...lines];
+  } else {
+    final end = _indexOfFollowingTomlHeader(lines, start);
+    next = [...lines.sublist(0, start), ...lines.sublist(end)];
+  }
+
+  while (next.isNotEmpty && next.last.trim().isEmpty) {
+    next.removeLast();
+  }
+
+  if (tools.isNotEmpty) {
+    if (next.isNotEmpty) {
+      next.add('');
+    }
+    next.add('[tools]');
+    for (final entry in tools.entries) {
+      if (entry.value.trim().isEmpty) {
+        continue;
+      }
+      next.add('${entry.key} = "${_escapeManagedTomlValue(entry.value.trim())}"');
+    }
+  }
+
+  final joined = next.join('\n').trimRight();
+  return joined.isEmpty ? '' : '$joined\n';
+}
+
+int _indexOfTomlHeader(List<String> lines, String sectionName) {
+  final header = '[$sectionName]';
+  for (var index = 0; index < lines.length; index++) {
+    if (lines[index].trim() == header) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+int _indexOfFollowingTomlHeader(List<String> lines, int start) {
+  for (var index = start + 1; index < lines.length; index++) {
+    final trimmed = lines[index].trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      return index;
+    }
+  }
+  return lines.length;
+}
+
+String _escapeManagedTomlValue(String value) {
+  return value.replaceAll('\\', r'\\').replaceAll('"', r'\"');
 }

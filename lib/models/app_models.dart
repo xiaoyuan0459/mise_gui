@@ -575,12 +575,70 @@ class ConfigWorkspaceData {
     required this.documents,
     this.runtimeSettings,
     this.proxySettings,
+    this.managedTools,
   });
 
   final List<ConfigSectionData> sections;
   final List<ConfigDocumentData> documents;
   final ConfigRuntimeSettingsData? runtimeSettings;
   final ConfigProxySettingsData? proxySettings;
+  final ConfigManagedToolsData? managedTools;
+}
+
+/// 全局配置里"管理的工具与版本"中的单个工具条目。
+class ConfigManagedToolEntry {
+  const ConfigManagedToolEntry({
+    required this.tool,
+    required this.installedVersions,
+    required this.remoteVersions,
+    this.declaredVersion,
+  });
+
+  final String tool;
+
+  /// 全局 `[tools]` 里声明的版本（未声明为 `null`）。
+  final String? declaredVersion;
+
+  /// 本机已安装版本。
+  final List<String> installedVersions;
+
+  /// 远端可用版本。
+  final List<String> remoteVersions;
+
+  bool get hasDeclared => declaredVersion != null && declaredVersion!.isNotEmpty;
+  bool get hasInstalled => installedVersions.isNotEmpty;
+
+  /// 去重后的候选版本集合（已安装 + 远端），已声明版本优先排在前面。
+  List<String> get candidateVersions {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final version in [
+      if (declaredVersion != null && declaredVersion!.isNotEmpty)
+        declaredVersion!,
+      ...installedVersions,
+      ...remoteVersions,
+    ]) {
+      if (seen.add(version)) {
+        result.add(version);
+      }
+    }
+    return result;
+  }
+}
+
+/// 全局配置"管理的工具与版本"数据。
+class ConfigManagedToolsData {
+  const ConfigManagedToolsData({
+    required this.document,
+    required this.entries,
+  });
+
+  /// 对应的全局配置文件。
+  final ConfigDocumentData document;
+  final List<ConfigManagedToolEntry> entries;
+
+  int get declaredCount =>
+      entries.where((entry) => entry.hasDeclared).length;
 }
 
 class DiagnoseCheck {

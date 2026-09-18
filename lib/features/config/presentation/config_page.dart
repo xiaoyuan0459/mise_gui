@@ -9,6 +9,7 @@ import 'package:mise_gui/app/theme/app_theme.dart';
 import 'package:mise_gui/features/config/application/config_provider.dart';
 import 'package:mise_gui/features/projects/application/projects_provider.dart';
 import 'package:mise_gui/models/app_models.dart';
+import 'package:mise_gui/services/config_service.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
@@ -251,6 +252,17 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                   document: document,
                 ),
               ),
+              if (workspace.managedTools case final managedTools?) ...[
+                const SizedBox(height: 12),
+                _ManagedToolsPanel(
+                  data: managedTools,
+                  onOpen: () => _openManagedToolsEditor(
+                    context: context,
+                    ref: ref,
+                    data: managedTools,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               _buildWorkspaceGrid(
                 workspace: workspace,
@@ -442,6 +454,445 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
       messenger.removeCurrentSnackBar();
       messenger.showSnackBar(const SnackBar(content: Text('Java 别名已写回全局配置。')));
     }
+  }
+
+  Future<void> _openManagedToolsEditor({
+    required BuildContext context,
+    required WidgetRef ref,
+    required ConfigManagedToolsData data,
+  }) async {
+    final didSave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _ManagedToolsEditorDialog(data: data),
+    );
+
+    if (didSave == true && context.mounted) {
+      ref.invalidate(configProvider);
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.removeCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('默认工具与版本已写回全局配置。')),
+      );
+    }
+  }
+}
+
+class _ManagedToolsPanel extends StatelessWidget {
+  const _ManagedToolsPanel({required this.data, required this.onOpen});
+
+  final ConfigManagedToolsData data;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final declared = data.entries
+        .where((entry) => entry.hasDeclared)
+        .toList(growable: false);
+
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PanelHeader(
+            title: '默认工具与版本',
+            description: '选择全局默认管理的工具及其版本，保存前先查看差异。',
+            icon: Icons.widgets_rounded,
+            accent: colors.accent,
+            action: OutlinedButton.icon(
+              onPressed: onOpen,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('配置工具与版本'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (declared.isEmpty)
+            Text(
+              '全局 [tools] 尚未声明任何工具，点击「配置工具与版本」开始管理。',
+              style: TextStyle(color: colors.textMuted, height: 1.45),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final entry in declared)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.panelRaised.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Text(
+                      '${entry.tool} @ ${entry.declaredVersion}',
+                      style: const TextStyle(
+                        fontFamily: 'FiraCode',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManagedToolsEditorDialog extends ConsumerStatefulWidget {
+  const _ManagedToolsEditorDialog({required this.data});
+
+  final ConfigManagedToolsData data;
+
+  @override
+  ConsumerState<_ManagedToolsEditorDialog> createState() =>
+      _ManagedToolsEditorDialogState();
+}
+
+class _ManagedToolsEditorDialogState
+    extends ConsumerState<_ManagedToolsEditorDialog> {
+  late final List<_ManagedToolDraft> _drafts;
+  ConfigSavePreview? _preview;
+  bool _loadingPreview = false;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _drafts = [for (final entry in widget.data.entries) _ManagedToolDraft(entry)];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final size = MediaQuery.sizeOf(context);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(28),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: size.width * 0.78,
+        constraints: BoxConstraints(
+          maxWidth: 920,
+          maxHeight: size.height * 0.84,
+        ),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: colors.panel,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: colors.borderStrong),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 28,
+              color: colors.backgroundDeep.withValues(alpha: 0.22),
+              offset: const Offset(0, 16),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _preview == null ? '管理默认工具与版本' : '确认保存默认工具与版本',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.data.document.path,
+              style: TextStyle(
+                color: colors.textMuted,
+                fontFamily: 'FiraCode',
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '已声明 ${widget.data.declaredCount} 项，共列出 ${_drafts.length} 个工具。',
+              style: TextStyle(color: colors.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _preview == null
+                  ? _buildForm(colors)
+                  : _CodePanel(
+                      title: '差异预览',
+                      content: _preview!.diffPreview,
+                      expand: true,
+                    ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.end,
+              children: [
+                if (_preview != null)
+                  OutlinedButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            setState(() => _preview = null);
+                          },
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('返回编辑'),
+                  ),
+                OutlinedButton(
+                  onPressed: _loadingPreview || _saving
+                      ? null
+                      : () => Navigator.of(context).pop(false),
+                  child: const Text('取消'),
+                ),
+                if (_preview == null)
+                  FilledButton.icon(
+                    onPressed: _loadingPreview ? null : _generatePreview,
+                    icon: Icon(
+                      _loadingPreview
+                          ? null
+                          : Icons.preview_rounded,
+                    ),
+                    label: Text(_loadingPreview ? '预览中...' : '预览变更'),
+                  ),
+                if (_preview != null)
+                  FilledButton(
+                    onPressed: _saving ? null : _saveSettings,
+                    child: Text(_saving ? '保存中...' : '保存到全局配置'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm(AppPalette colors) {
+    return ListView.separated(
+      itemCount: _drafts.length,
+      separatorBuilder: (context, index) =>
+          Divider(height: 1, color: colors.border.withValues(alpha: 0.9)),
+      itemBuilder: (context, index) {
+        final draft = _drafts[index];
+        return _ManagedToolRow(
+          draft: draft,
+          onChanged: () => setState(() {}),
+        );
+      },
+    );
+  }
+
+  Map<String, String> _collectTools() {
+    final tools = <String, String>{};
+    for (final draft in _drafts) {
+      if (!draft.enabled) {
+        continue;
+      }
+      final version = draft.version?.trim();
+      if (version == null || version.isEmpty) {
+        continue;
+      }
+      tools[draft.entry.tool] = version;
+    }
+    return tools;
+  }
+
+  Future<void> _generatePreview() async {
+    final nextContent = buildManagedToolsConfigContent(
+      currentContent: widget.data.document.content,
+      tools: _collectTools(),
+    );
+    setState(() => _loadingPreview = true);
+    try {
+      final preview = await ref
+          .read(configRepositoryProvider)
+          .previewSave(document: widget.data.document, nextContent: nextContent);
+      if (!mounted) {
+        return;
+      }
+      if (!preview.hasChanges) {
+        _showFeedback('没有变更，无需预览。');
+        return;
+      }
+      setState(() => _preview = preview);
+    } finally {
+      if (mounted) {
+        setState(() => _loadingPreview = false);
+      }
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    final preview = _preview;
+    if (preview == null || !preview.hasChanges || !mounted) {
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final stopwatch = Stopwatch()..start();
+      await ref
+          .read(configRepositoryProvider)
+          .saveDocument(
+            document: preview.document,
+            nextContent: preview.nextContent,
+          );
+      stopwatch.stop();
+      await ref
+          .read(historyServiceProvider)
+          .appendEntry(
+            HistoryEntry(
+              command: preview.commandPreview,
+              timestamp: _formatNow(),
+              detail: '已通过界面更新全局默认工具与版本。',
+              level: HealthLevel.info,
+              status: HistoryStatus.success,
+              exitCode: 0,
+              durationMs: stopwatch.elapsedMilliseconds,
+              stdout: preview.document.path,
+              stdoutSnippet: preview.document.path,
+            ),
+          );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  String _formatNow() {
+    final now = DateTime.now();
+    final hours = now.hour.toString().padLeft(2, '0');
+    final minutes = now.minute.toString().padLeft(2, '0');
+    return '$hours:$minutes';
+  }
+
+  void _showFeedback(String message) {
+    if (!mounted) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ManagedToolDraft {
+  _ManagedToolDraft(ConfigManagedToolEntry toolEntry)
+    : entry = toolEntry,
+      enabled = toolEntry.hasDeclared,
+      version = toolEntry.declaredVersion?.isNotEmpty == true
+          ? toolEntry.declaredVersion
+          : (toolEntry.candidateVersions.isEmpty
+                ? null
+                : toolEntry.candidateVersions.first);
+
+  final ConfigManagedToolEntry entry;
+  bool enabled;
+  String? version;
+}
+
+class _ManagedToolRow extends StatelessWidget {
+  const _ManagedToolRow({required this.draft, required this.onChanged});
+
+  final _ManagedToolDraft draft;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final entry = draft.entry;
+    final candidates = entry.candidateVersions;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Switch(
+            value: draft.enabled,
+            onChanged: (value) {
+              if (value && draft.version == null && candidates.isNotEmpty) {
+                draft.version = candidates.first;
+              }
+              draft.enabled = value;
+              onChanged();
+            },
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.tool,
+                  style: const TextStyle(
+                    fontFamily: 'FiraCode',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  entry.hasInstalled
+                      ? '已装 ${entry.installedVersions.length} 个版本'
+                      : '未安装',
+                  style: TextStyle(color: colors.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 240,
+            child: !draft.enabled
+                ? Text(
+                    '不管理',
+                    textAlign: TextAlign.end,
+                    style: TextStyle(color: colors.textMuted),
+                  )
+                : candidates.isEmpty
+                ? Text(
+                    '暂无可用版本',
+                    textAlign: TextAlign.end,
+                    style: TextStyle(color: colors.warning),
+                  )
+                : Align(
+                    alignment: Alignment.centerRight,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: draft.version,
+                      isDense: true,
+                      decoration: const InputDecoration(
+                        labelText: '版本',
+                        isDense: true,
+                      ),
+                      items: [
+                        for (final version in candidates)
+                          DropdownMenuItem(
+                            value: version,
+                            child: Text(
+                              version,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontFamily: 'FiraCode'),
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        draft.version = value;
+                        onChanged();
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
