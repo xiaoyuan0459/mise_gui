@@ -15,6 +15,7 @@ import 'package:mise_gui/services/mise_process_service.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
+import 'package:mise_gui/shared/ui/panel_header.dart';
 import 'package:mise_gui/shared/ui/status_badge.dart';
 
 class ProjectsPage extends ConsumerStatefulWidget {
@@ -510,7 +511,7 @@ class _ScanDirectoriesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPanel(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       radius: 20,
       backgroundAlpha: 0.58,
       borderAlpha: 0.42,
@@ -521,7 +522,7 @@ class _ScanDirectoriesPanel extends StatelessWidget {
             directoryCount: directories.length,
             onAddDirectory: onAddDirectory,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           if (directories.isEmpty)
             _ScanDirectoriesEmptyState(onAddDirectory: onAddDirectory)
           else
@@ -599,49 +600,40 @@ class _ScanDirectoriesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
+    final actions = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (directoryCount > 0)
+          _DirectoryCountPill(directoryCount: directoryCount),
+        FilledButton.icon(
+          onPressed: onAddDirectory,
+          icon: const Icon(Icons.create_new_folder_rounded, size: 18),
+          label: const Text('添加目录'),
+        ),
+      ],
+    );
+    const header = PanelHeader(
+      title: '扫描范围',
+      description: '添加工作区目录，查找其中的 mise 项目和版本覆盖。',
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 620;
-        final titleBlock = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('扫描范围', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              '添加工作区目录后，应用会在其中查找 mise 项目和项目级版本覆盖。',
-              style: TextStyle(color: colors.textMuted, height: 1.45),
-            ),
-          ],
-        );
-        final actions = Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            if (directoryCount > 0)
-              _DirectoryCountPill(directoryCount: directoryCount),
-            FilledButton.icon(
-              onPressed: onAddDirectory,
-              icon: const Icon(Icons.create_new_folder_rounded, size: 18),
-              label: const Text('添加目录'),
-            ),
-          ],
-        );
-
         if (compact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [titleBlock, const SizedBox(height: 14), actions],
+            children: [header, const SizedBox(height: 12), actions],
           );
         }
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: titleBlock),
-            const SizedBox(width: 18),
+            const Expanded(child: header),
+            const SizedBox(width: 16),
             actions,
           ],
         );
@@ -736,7 +728,7 @@ class _ScanDirectoriesEmptyState extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: colors.panelRaised.withValues(alpha: 0.24),
             borderRadius: BorderRadius.circular(16),
@@ -796,7 +788,7 @@ class _ScanDirectoryCard extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(16),
@@ -819,7 +811,7 @@ class _ScanDirectoryCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
                       directory.path,
                       style: TextStyle(
@@ -836,10 +828,10 @@ class _ScanDirectoryCard extends StatelessWidget {
               _DirectoryStatusLabel(enabled: directory.enabled),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _DirectorySummaryBanner(summary: summary),
           if (projectCount > 0) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _DirectoryProjectDetails(
               directoryPath: directory.path,
               projects: projects,
@@ -847,7 +839,7 @@ class _ScanDirectoryCard extends StatelessWidget {
               overrideProjectCount: overrideProjectCount,
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
               TextButton.icon(
@@ -1165,37 +1157,21 @@ class _OverridesPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
     return AppPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('覆盖项目', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 8),
-                    Text(
-                      '只列出项目版本和全局版本不一致的条目。',
-                      style: TextStyle(color: colors.textMuted, height: 1.5),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              if (overrideRows.isNotEmpty)
-                StatusBadge(
-                  label: '${overrideRows.length} 项',
-                  level: HealthLevel.warning,
-                ),
-            ],
+          PanelHeader(
+            title: '覆盖项目',
+            description: '仅列出项目版本与全局版本不一致的条目。',
+            trailing: overrideRows.isEmpty
+                ? null
+                : StatusBadge(
+                    label: '${overrideRows.length} 项',
+                    level: HealthLevel.warning,
+                  ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           if (directories.isEmpty)
             const _OverridesEmptyState(message: '暂无项目覆盖全局版本')
           else if (overrideRows.isEmpty)
@@ -1234,7 +1210,7 @@ class _OverridesEmptyState extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: colors.backgroundSoft.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(18),

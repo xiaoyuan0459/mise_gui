@@ -13,6 +13,7 @@ import 'package:mise_gui/services/mise_process_service.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
+import 'package:mise_gui/shared/ui/panel_header.dart';
 import 'package:mise_gui/shared/ui/recent_history_dialog.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -195,9 +196,9 @@ class _DashboardOverview extends StatelessWidget {
     return Column(
       children: [
         _DashboardMetricGrid(metrics: snapshot.metrics),
-        const SizedBox(height: 28),
+        const SizedBox(height: 16),
         const _MiseSelfUpdatePanel(),
-        const SizedBox(height: 28),
+        const SizedBox(height: 16),
         _RecentHistoryPanel(entries: snapshot.recentHistory),
       ],
     );
@@ -522,81 +523,55 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
     final accent = updateAvailable ? colors.warning : colors.info;
 
     return AppPanel(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       radius: 20,
       backgroundAlpha: 0.74,
       borderAlpha: 0.5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(13),
+          PanelHeader(
+            title: 'mise 本体更新',
+            description: _statusText(info),
+            icon: Icons.system_update_alt_rounded,
+            accent: accent,
+            action: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _checking || _updating ? null : _checkForUpdate,
+                  icon: _checking
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                  label: Text(_checking ? '检查中...' : '检查更新'),
                 ),
-                child: Icon(Icons.system_update_alt_rounded, color: accent),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'mise 本体更新',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _statusText(info),
-                      style: TextStyle(color: colors.textMuted, height: 1.45),
-                    ),
-                  ],
+                FilledButton.icon(
+                  onPressed: updateAvailable && !_checking && !_updating
+                      ? _runSelfUpdate
+                      : null,
+                  icon: _updating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.upgrade_rounded),
+                  label: Text(_updating ? '升级中...' : '升级 mise'),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _checking || _updating ? null : _checkForUpdate,
-                    icon: _checking
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded),
-                    label: Text(_checking ? '检查中...' : '检查更新'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: updateAvailable && !_checking && !_updating
-                        ? _runSelfUpdate
-                        : null,
-                    icon: _updating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.upgrade_rounded),
-                    label: Text(_updating ? '升级中...' : '升级 mise'),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
           if (info != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _MiseUpdateVersionRow(info: info),
           ],
           if (_logs.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _MiseSelfUpdateLog(logs: _logs),
           ],
         ],
@@ -778,31 +753,18 @@ class _RecentHistoryPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('最近活动', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  Text(
-                    '查看最近通过界面执行过的操作结果。',
-                    style: TextStyle(color: colors.textMuted, height: 1.5),
-                  ),
-                ],
-              ),
-            ),
-            if (entries.isNotEmpty)
-              TextButton.icon(
-                onPressed: () => showRecentHistoryDialog(context),
-                icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: const Text('查看全部'),
-              ),
-          ],
+        PanelHeader(
+          title: '最近活动',
+          description: '查看最近通过界面执行过的操作结果。',
+          action: entries.isNotEmpty
+              ? TextButton.icon(
+                  onPressed: () => showRecentHistoryDialog(context),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('查看全部'),
+                )
+              : null,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         if (entries.isEmpty)
           Container(
             width: double.infinity,

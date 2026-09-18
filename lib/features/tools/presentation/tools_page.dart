@@ -19,6 +19,7 @@ import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
 import 'package:mise_gui/shared/ui/history_entry_dialog.dart';
 import 'package:mise_gui/shared/ui/inline_notice_bar.dart';
+import 'package:mise_gui/shared/ui/panel_header.dart';
 
 List<String> selectVersionSuggestions(List<MiseRemoteToolVersionRef> versions) {
   final stableVersions = versions
@@ -1282,19 +1283,15 @@ class _ToolList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
     return AppPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('已安装', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            '按工具查看当前版本，并按需加载可升级信息。',
-            style: TextStyle(color: colors.textMuted, height: 1.5),
+          const PanelHeader(
+            title: '已安装',
+            description: '按工具查看当前版本，并按需加载可升级信息。',
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           for (final tool in tools)
             KeyedSubtree(
               key: ValueKey('tool-accordion-${tool.id}'),
@@ -1542,7 +1539,7 @@ class _ToolWorkspace extends StatelessWidget {
           onRetryDetail: onRetryDetail,
           onOpenPreview: onOpenPreview,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _VersionInventoryPanel(
           title: '本机版本',
           subtitle: '已安装到本机，可直接切换。',
@@ -1558,7 +1555,7 @@ class _ToolWorkspace extends StatelessWidget {
           ),
           onOpenPreview: onOpenPreview,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _VersionInventoryPanel(
           title: '远端版本',
           subtitle: '可安装或升级的远端版本。',
@@ -1606,7 +1603,7 @@ class _ToolHeroPanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.36),
         borderRadius: BorderRadius.circular(20),
@@ -1701,7 +1698,7 @@ class _ToolHeroPanel extends StatelessWidget {
             ],
           ),
           if (tool.notices.isNotEmpty) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Column(
               children: [
                 for (final notice in tool.notices) ...[
@@ -1773,7 +1770,7 @@ class _VersionInventoryPanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.24),
         borderRadius: BorderRadius.circular(20),
@@ -1782,12 +1779,17 @@ class _VersionInventoryPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ToolSectionHeader(
+          PanelHeader(
+            icon: inventoryType == _VersionInventoryType.installed
+                ? Icons.inventory_2_outlined
+                : Icons.cloud_outlined,
             title: title,
-            subtitle: subtitle,
-            badgeLabel: versions.length > 1 ? '${versions.length} 条' : null,
+            description: subtitle,
+            trailing: versions.length > 1
+                ? _SectionCountLabel(label: '${versions.length} 条')
+                : null,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           if (versions.isEmpty)
             _PanelEmptyStateCard(
               data:
@@ -1885,17 +1887,17 @@ class _VersionCard extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 14),
-              info,
               const SizedBox(height: 12),
+              info,
+              const SizedBox(height: 10),
               actionRow,
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
             ],
           );
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -2066,57 +2068,6 @@ class _VersionStateLabel extends StatelessWidget {
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ToolSectionHeader extends StatelessWidget {
-  const _ToolSectionHeader({
-    required this.title,
-    required this.subtitle,
-    this.badgeLabel,
-  });
-
-  final String title;
-  final String subtitle;
-  final String? badgeLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: colors.textMuted, height: 1.5),
-                  ),
-                ],
-              ),
-            ),
-            if (badgeLabel != null) ...[
-              const SizedBox(width: 12),
-              _SectionCountLabel(label: badgeLabel!),
-            ],
-          ],
-        ),
-        const SizedBox(height: 14),
-        Container(
-          height: 1,
-          width: double.infinity,
-          color: colors.border.withValues(alpha: 0.8),
         ),
       ],
     );

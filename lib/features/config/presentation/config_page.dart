@@ -12,6 +12,7 @@ import 'package:mise_gui/models/app_models.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
+import 'package:mise_gui/shared/ui/panel_header.dart';
 import 'package:mise_gui/shared/ui/status_badge.dart';
 
 const Map<String, String> javaAliasDefaults = {
@@ -251,7 +252,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                 ),
               ),
               if (workspace.runtimeSettings case final runtimeSettings?) ...[
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 _RuntimeSettingsPanel(
                   data: runtimeSettings,
                   onEdit: () => _openRuntimeSettingsEditor(
@@ -262,7 +263,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                 ),
               ],
               if (workspace.proxySettings case final proxySettings?) ...[
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 _ProxySettingsPanel(
                   data: proxySettings,
                   onEdit: () => _openProxySettingsEditor(
@@ -272,10 +273,10 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                   ),
                 ),
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               for (final section in workspace.sections)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: _ConfigSection(
                     section: section,
                     onEditProxy:
@@ -466,40 +467,29 @@ class _DocumentStrip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '配置文件',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              TextButton.icon(
-                onPressed: refreshing ? null : onRefresh,
-                icon: refreshing
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh_rounded, size: 18),
-                label: Text(refreshing ? '刷新中...' : '刷新'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '先确认当前有哪些配置文件，再选择要查看的项目配置。',
-            style: TextStyle(color: colors.textMuted, height: 1.45),
+          PanelHeader(
+            title: '配置文件',
+            description: '先确认当前有哪些配置文件，再选择要查看的项目配置。',
+            action: TextButton.icon(
+              onPressed: refreshing ? null : onRefresh,
+              icon: refreshing
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(refreshing ? '刷新中...' : '刷新'),
+            ),
           ),
           if (globalDocument != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             _GlobalDocumentBar(
               document: globalDocument,
               onEdit: () => onEditDocument(globalDocument!),
             ),
             if (projectOptions.isNotEmpty || projectDocument != null) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Divider(
                 height: 1,
                 thickness: 1,
@@ -508,7 +498,7 @@ class _DocumentStrip extends StatelessWidget {
             ],
           ],
           if (projectOptions.isNotEmpty) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             _ProjectSelector(
               projectOptions: projectOptions,
               selectedProject: selectedProject,
@@ -517,14 +507,14 @@ class _DocumentStrip extends StatelessWidget {
           ],
           if (projectDocument != null) ...[
             if (projectOptions.isNotEmpty) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Divider(
                 height: 1,
                 thickness: 1,
                 color: colors.border.withValues(alpha: 0.9),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
               child: _DocumentCard(
@@ -740,34 +730,18 @@ class _RuntimeSettingsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '运行时设置',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '常用 mise settings 写入 ${data.document.fileName}。',
-                      style: TextStyle(color: colors.textMuted, height: 1.45),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              OutlinedButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('调整设置'),
-              ),
-            ],
+          PanelHeader(
+            title: '运行时设置',
+            description: '常用 mise settings 写入 ${data.document.fileName}。',
+            icon: Icons.tune_rounded,
+            accent: colors.accent,
+            action: OutlinedButton.icon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('调整设置'),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final columns = constraints.maxWidth >= 920 ? 3 : 2;
@@ -858,31 +832,19 @@ class _ProxySettingsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('网络代理', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 6),
-                    Text(
-                      '写入 ${data.document.fileName} 的 [env]，GUI 发起的 mise 命令也会读取这些代理变量。',
-                      style: TextStyle(color: colors.textMuted, height: 1.45),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              OutlinedButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(Icons.public_rounded),
-                label: Text(data.hasProxy ? '调整代理' : '设置代理'),
-              ),
-            ],
+          PanelHeader(
+            title: '网络代理',
+            description:
+                '写入 ${data.document.fileName} 的 [env]，GUI 的 mise 命令也会读取。',
+            icon: Icons.public_rounded,
+            accent: colors.warning,
+            action: OutlinedButton.icon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.public_rounded),
+              label: Text(data.hasProxy ? '调整代理' : '设置代理'),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final columns = constraints.maxWidth >= 920 ? 4 : 2;
@@ -972,44 +934,25 @@ class _ConfigSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
     return AppPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      section.title,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      section.description,
-                      style: TextStyle(color: colors.textMuted, height: 1.55),
-                    ),
-                  ],
-                ),
-              ),
-              if (onEditJavaAliases != null) ...[
-                const SizedBox(width: 16),
-                OutlinedButton.icon(
-                  onPressed: onEditJavaAliases,
-                  icon: const Icon(Icons.edit_note_rounded),
-                  label: const Text('配置别名'),
-                ),
-              ],
-            ],
+          PanelHeader(
+            title: section.title,
+            description: section.description,
+            accent: AppTheme.colorsOf(context).accent,
+            action: onEditJavaAliases == null
+                ? null
+                : OutlinedButton.icon(
+                    onPressed: onEditJavaAliases,
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: const Text('配置别名'),
+                  ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _ConfigItemGroup(section: section, onEditProxy: onEditProxy),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _ConfigRawPanel(content: section.rawSnippet),
         ],
       ),
