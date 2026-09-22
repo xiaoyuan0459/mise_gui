@@ -417,7 +417,7 @@ class _SidebarDestinationBlock extends ConsumerWidget {
     final activeSection = ref.watch(selectedConfigSectionProvider);
 
     final main = Padding(
-      padding: const EdgeInsets.only(bottom: isConfig ? 2 : 8),
+      padding: EdgeInsets.only(bottom: isConfig ? 2 : 8),
       child: _SidebarDestination(
         destination: destination,
         expanded: expanded,
