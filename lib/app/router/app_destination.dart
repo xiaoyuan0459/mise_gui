@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 enum AppDestination {
   dashboard(
-    label: '总览',
+    label: '环境',
     description: '环境总览',
     path: '/dashboard',
     icon: Icons.space_dashboard_rounded,

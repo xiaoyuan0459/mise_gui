@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mise_gui/app/bootstrap/dependencies.dart';
 import 'package:mise_gui/app/router/app_destination.dart';
 import 'package:mise_gui/app/theme/app_theme.dart';
+import 'package:mise_gui/features/config/application/config_provider.dart';
 import 'package:mise_gui/shared/ui/app_backdrop.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/services/mise_process_service.dart';
@@ -322,16 +323,12 @@ class _Sidebar extends ConsumerWidget {
                         ),
                         const SizedBox(height: 20),
                         for (final destination in AppDestination.values)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _SidebarDestination(
-                              destination: destination,
-                              expanded: expanded,
-                              selected:
-                                  !locked && currentIndex == destination.index,
-                              locked: locked,
-                              onTap: () => onSelect(destination.index),
-                            ),
+                          _SidebarDestinationBlock(
+                            destination: destination,
+                            currentIndex: currentIndex,
+                            expanded: expanded,
+                            locked: locked,
+                            onSelect: onSelect,
                           ),
                       ],
                     ),
@@ -394,6 +391,140 @@ class _SidebarFooter extends StatelessWidget {
           style: style,
         ),
       ),
+    );
+  }
+}
+
+class _SidebarDestinationBlock extends ConsumerWidget {
+  const _SidebarDestinationBlock({
+    required this.destination,
+    required this.currentIndex,
+    required this.expanded,
+    required this.locked,
+    required this.onSelect,
+  });
+
+  final AppDestination destination;
+  final int currentIndex;
+  final bool expanded;
+  final bool locked;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = !locked && currentIndex == destination.index;
+    final isConfig = destination == AppDestination.config;
+    final activeSection = ref.watch(selectedConfigSectionProvider);
+
+    final main = Padding(
+      padding: const EdgeInsets.only(bottom: isConfig ? 2 : 8),
+      child: _SidebarDestination(
+        destination: destination,
+        expanded: expanded,
+        selected: selected,
+        locked: locked,
+        onTap: () => onSelect(destination.index),
+      ),
+    );
+
+    if (!isConfig || !expanded || locked) {
+      return main;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        main,
+        Padding(
+          padding: const EdgeInsets.only(left: 22, bottom: 8, top: 2),
+          child: _SidebarConfigChildren(
+            currentIndex: currentIndex,
+            activeSection: activeSection,
+            onSelect: onSelect,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SidebarConfigChildren extends ConsumerWidget {
+  const _SidebarConfigChildren({
+    required this.currentIndex,
+    required this.activeSection,
+    required this.onSelect,
+  });
+
+  final int currentIndex;
+  final ConfigSection activeSection;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppTheme.colorsOf(context);
+    final active = currentIndex == AppDestination.config.index;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final section in ConfigSection.values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Material(
+              color: active && section == activeSection
+                  ? colors.accent.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: () {
+                  ref
+                      .read(selectedConfigSectionProvider.notifier)
+                      .state = section;
+                  onSelect(AppDestination.config.index);
+                },
+                borderRadius: BorderRadius.circular(10),
+                hoverColor: active ? colors.hover : Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: active && section == activeSection
+                              ? colors.accent
+                              : colors.textMuted.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          section.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: active && section == activeSection
+                                ? colors.textPrimary
+                                : colors.textMuted,
+                            fontSize: 12.5,
+                            fontWeight: active && section == activeSection
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

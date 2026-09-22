@@ -207,6 +207,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
   @override
   Widget build(BuildContext context) {
     final configValue = ref.watch(configProvider);
+    final section = ref.watch(selectedConfigSectionProvider);
     final projectOptions = ref
         .watch(projectsProvider)
         .maybeWhen(
@@ -227,47 +228,29 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         }
 
         return AppPageScaffold(
-          title: '配置管理',
-          description: '管理全局和项目配置，保存前先查看差异。',
+          title: section.label,
+          description: section.description,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ConfigAutoRefresh(
                 paths: workspace.documents
                     .map((document) => document.path)
                     .toList(),
               ),
-              _DocumentStrip(
-                documents: workspace.documents,
-                projectOptions: projectOptions,
-                selectedProject: selectedProject,
-                onSelectProject: (path) {
-                  ref.read(selectedConfigProjectPathProvider.notifier).state =
-                      path;
-                },
-                refreshing: _refreshing,
-                onRefresh: _handleRefresh,
-                onEditDocument: (document) => _openDocumentEditor(
-                  context: context,
-                  ref: ref,
-                  document: document,
+              const SizedBox(height: 12),
+              switch (section) {
+                ConfigSection.global => _buildGlobalView(
+                  workspace: workspace,
+                  projectOptions: projectOptions,
+                  selectedProject: selectedProject,
                 ),
-              ),
-              if (workspace.managedTools case final managedTools?) ...[
-                const SizedBox(height: 12),
-                _ManagedToolsPanel(
-                  data: managedTools,
-                  onOpen: () => _openManagedToolsEditor(
-                    context: context,
-                    ref: ref,
-                    data: managedTools,
-                  ),
+                ConfigSection.tools => _buildManagedToolsView(workspace),
+                ConfigSection.runtime => _buildRuntimeView(
+                  workspace: workspace,
+                  globalDocument: globalDocument,
                 ),
-              ],
-              const SizedBox(height: 16),
-              _buildWorkspaceGrid(
-                workspace: workspace,
-                globalDocument: globalDocument,
-              ),
+              },
             ],
           ),
         );
@@ -275,13 +258,67 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
     );
   }
 
-  /// 两栏分栏式的设置区布局：宽屏时「运行时 / 其它设置」与「网络代理 / 其它区段」并排。
-  Widget _buildWorkspaceGrid({
+  Widget _buildGlobalView({
+    required ConfigWorkspaceData workspace,
+    required List<ProjectRecord> projectOptions,
+    required ProjectRecord? selectedProject,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DocumentStrip(
+          documents: workspace.documents,
+          projectOptions: projectOptions,
+          selectedProject: selectedProject,
+          onSelectProject: (path) {
+            ref.read(selectedConfigProjectPathProvider.notifier).state = path;
+          },
+          refreshing: _refreshing,
+          onRefresh: _handleRefresh,
+          onEditDocument: (document) => _openDocumentEditor(
+            context: context,
+            ref: ref,
+            document: document,
+          ),
+        ),
+        if (workspace.managedTools case final managedTools?) ...[
+          const SizedBox(height: 12),
+          _ManagedToolsPanel(
+            data: managedTools,
+            onOpen: () => _openManagedToolsEditor(
+              context: context,
+              ref: ref,
+              data: managedTools,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildManagedToolsView(ConfigWorkspaceData workspace) {
+    final managedTools = workspace.managedTools;
+    if (managedTools == null) {
+      return const _EmptySectionHint(
+        icon: Icons.widgets_rounded,
+        title: '暂无可管理的工具',
+        message: '没有探测到已安装或已声明的工具，稍后会自动刷新。',
+      );
+    }
+    return _ManagedToolsPanel(
+      data: managedTools,
+      onOpen: () => _openManagedToolsEditor(
+        context: context,
+        ref: ref,
+        data: managedTools,
+      ),
+    );
+  }
+
+  Widget _buildRuntimeView({
     required ConfigWorkspaceData workspace,
     required ConfigDocumentData? globalDocument,
   }) {
-    // 运行时设置的信息已由下面的专用面板覆盖，把 sections 里重复的「运行时设置」收敛到左栏，
-    // 其余区段（全局工具 / Java 别名 / 项目工具）进入右栏。
     ConfigSectionData? runtimeSection;
     final otherSections = <ConfigSectionData>[];
     for (final section in workspace.sections) {
@@ -311,12 +348,8 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
           const SizedBox(height: 12),
           _RuntimeSectionSummary(section: runtimeSection),
         ],
-      ],
-    );
-
-    Widget restColumn() {
-      final children = <Widget>[
-        if (proxySettings != null)
+        if (proxySettings != null) ...[
+          const SizedBox(height: 12),
           _ProxySettingsPanel(
             data: proxySettings,
             onEdit: () => _openProxySettingsEditor(
@@ -325,12 +358,9 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
               data: proxySettings,
             ),
           ),
-      ];
-      for (final section in otherSections) {
-        if (children.isNotEmpty) {
-          children.add(const SizedBox(height: 12));
-        }
-        children.add(
+        ],
+        for (final section in otherSections) ...[
+          const SizedBox(height: 12),
           _ConfigSection(
             section: section,
             onEditJavaAliases:
@@ -342,39 +372,11 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
                   )
                 : null,
           ),
-        );
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      );
-    }
-
-    final leftWidget = runtimeEditor();
-    final rightWidget = restColumn();
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 920) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: leftWidget),
-              const SizedBox(width: 16),
-              Expanded(child: rightWidget),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            leftWidget,
-            const SizedBox(height: 16),
-            rightWidget,
-          ],
-        );
-      },
+        ],
+      ],
     );
+
+    return runtimeEditor();
   }
 
   Future<void> _openDocumentEditor({
@@ -3265,6 +3267,63 @@ class _JavaAliasesEditorDialogState
       return;
     }
     setState(() {});
+  }
+}
+
+class _EmptySectionHint extends StatelessWidget {
+  const _EmptySectionHint({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return AppPanel(
+      radius: 10,
+      showShadow: false,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colors.info.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.info.withValues(alpha: 0.24)),
+              ),
+              child: Icon(icon, color: colors.info, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    style: TextStyle(color: colors.textMuted, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -77,6 +77,8 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
   final Set<String> _loadingToolIds = <String>{};
   final Set<String> _failedToolIds = <String>{};
   final Map<String, ToolRecord> _hydratedTools = <String, ToolRecord>{};
+  final Set<String> _managedToolIds = <String>{};
+  var _managedInitialized = false;
   var _refreshing = false;
 
   void _showFeedback(String message) {
@@ -169,13 +171,24 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
     return AsyncStateView(
       value: toolsValue,
       builder: (tools) {
+        if (!_managedInitialized && tools.isNotEmpty) {
+          _managedToolIds
+            ..clear()
+            ..addAll(tools.map((tool) => tool.id));
+          _managedInitialized = true;
+        }
+
         final displayTools = tools
+            .where((tool) => _managedToolIds.contains(tool.id))
+            .map((tool) => _hydratedTools[tool.id] ?? tool)
+            .toList(growable: false);
+        final allTools = tools
             .map((tool) => _hydratedTools[tool.id] ?? tool)
             .toList(growable: false);
 
         return AppPageScaffold(
           title: '工具版本',
-          description: '按工具查看当前版本，并在需要时升级或卸载。',
+          description: '勾选要管理的工具，管理列表只显示你选中的工具。',
           actions: [
             OutlinedButton.icon(
               onPressed: _refreshing ? null : _refreshTools,
@@ -194,20 +207,46 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
               label: const Text('安装工具'),
             ),
           ],
-          child: _ToolList(
-            tools: displayTools,
-            selectedToolId: _selectedToolId,
-            hydratedTools: _hydratedTools,
-            loadingToolIds: _loadingToolIds,
-            requestedToolIds: _requestedToolIds,
-            failedToolIds: _failedToolIds,
-            onSelected: _selectTool,
-            onRetryDetail: _retryToolDetail,
-            onOpenPreview: _openToolActionPreview,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ToolManagerPicker(
+                tools: allTools,
+                managedToolIds: _managedToolIds,
+                onToggle: _toggleManaged,
+              ),
+              const SizedBox(height: 12),
+              if (displayTools.isEmpty)
+                const _NoManagedTools()
+              else
+                _ToolList(
+                  tools: displayTools,
+                  selectedToolId: _selectedToolId,
+                  hydratedTools: _hydratedTools,
+                  loadingToolIds: _loadingToolIds,
+                  requestedToolIds: _requestedToolIds,
+                  failedToolIds: _failedToolIds,
+                  onSelected: _selectTool,
+                  onRetryDetail: _retryToolDetail,
+                  onOpenPreview: _openToolActionPreview,
+                ),
+            ],
           ),
         );
       },
     );
+  }
+
+  void _toggleManaged(String id) {
+    if (_managedToolIds.contains(id)) {
+      _managedToolIds.remove(id);
+      if (_selectedToolId == id) {
+        _selectedToolId = null;
+      }
+    } else {
+      _managedToolIds.add(id);
+    }
+    setState(() {});
   }
 
   void _selectTool(String id) {
@@ -1248,6 +1287,106 @@ class _VersionSuggestionRow extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolManagerPicker extends StatelessWidget {
+  const _ToolManagerPicker({
+    required this.tools,
+    required this.managedToolIds,
+    required this.onToggle,
+  });
+
+  final List<ToolRecord> tools;
+  final Set<String> managedToolIds;
+  final ValueChanged<String> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final selectedCount = tools
+        .where((tool) => managedToolIds.contains(tool.id))
+        .length;
+
+    return AppPanel(
+      radius: 10,
+      showShadow: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PanelHeader(
+            title: '选择要管理的工具',
+            description: '只勾选需要在这里查看和管理的工具，其它工具将被隐藏。',
+            trailing: Text(
+              '已选 $selectedCount / ${tools.length}',
+              style: TextStyle(color: colors.textMuted, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final tool in tools)
+                FilterChip(
+                  label: Text(tool.name),
+                  selected: managedToolIds.contains(tool.id),
+                  onSelected: (_) => onToggle(tool.id),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoManagedTools extends StatelessWidget {
+  const _NoManagedTools();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return AppPanel(
+      radius: 10,
+      showShadow: false,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.warning.withValues(alpha: 0.24)),
+              ),
+              child: Icon(Icons.filter_alt_off_rounded,
+                  color: colors.warning, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '还没有选择要管理的工具',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '在上方勾选一个或多个工具后，管理列表会在这里显示。',
+                    style: TextStyle(color: colors.textMuted, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
