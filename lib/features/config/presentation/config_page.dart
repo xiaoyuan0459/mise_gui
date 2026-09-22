@@ -492,14 +492,14 @@ class _ManagedToolsPanel extends StatelessWidget {
         .toList(growable: false);
 
     return AppPanel(
+      radius: 10,
+      showShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PanelHeader(
             title: '默认工具与版本',
             description: '选择全局默认管理的工具及其版本，保存前先查看差异。',
-            icon: Icons.widgets_rounded,
-            accent: colors.accent,
             action: OutlinedButton.icon(
               onPressed: onOpen,
               icon: const Icon(Icons.tune_rounded),
@@ -525,7 +525,7 @@ class _ManagedToolsPanel extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: colors.panelRaised.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: colors.border),
                     ),
                     child: Text(
@@ -975,6 +975,8 @@ class _DocumentStrip extends StatelessWidget {
     }
 
     return AppPanel(
+      radius: 10,
+      showShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1235,17 +1237,15 @@ class _RuntimeSettingsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
     return AppPanel(
+      radius: 10,
+      showShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PanelHeader(
             title: '运行时设置',
             description: '常用 mise settings 写入 ${data.document.fileName}。',
-            icon: Icons.tune_rounded,
-            accent: colors.accent,
             action: OutlinedButton.icon(
               onPressed: onEdit,
               icon: const Icon(Icons.tune_rounded),
@@ -1289,10 +1289,10 @@ class _RuntimeSettingTile extends StatelessWidget {
     final value = setting.isSet ? setting.value : '默认 ${setting.defaultValue}';
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.panelMuted,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -1337,9 +1337,9 @@ class _ProxySettingsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
     return AppPanel(
+      radius: 10,
+      showShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1347,8 +1347,6 @@ class _ProxySettingsPanel extends StatelessWidget {
             title: '网络代理',
             description:
                 '写入 ${data.document.fileName} 的 [env]，GUI 的 mise 命令也会读取。',
-            icon: Icons.public_rounded,
-            accent: colors.warning,
             action: OutlinedButton.icon(
               onPressed: onEdit,
               icon: const Icon(Icons.public_rounded),
@@ -1392,10 +1390,10 @@ class _ProxySettingTile extends StatelessWidget {
     final value = setting.isSet ? setting.value : '未设置';
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colors.panelMuted,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -1444,13 +1442,14 @@ class _ConfigSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPanel(
+      radius: 10,
+      showShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PanelHeader(
             title: section.title,
             description: section.description,
-            accent: AppTheme.colorsOf(context).accent,
             action: onEditJavaAliases == null
                 ? null
                 : OutlinedButton.icon(
@@ -1634,12 +1633,11 @@ class _ToolDeclarationCard extends StatelessWidget {
     return Semantics(
       label: '${entry.tool} 已声明版本 ${entry.value}',
       child: Container(
-        constraints: const BoxConstraints(minHeight: 104),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: colors.panelRaised.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border.withValues(alpha: 0.74)),
+          color: colors.panelMuted,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1647,70 +1645,46 @@ class _ToolDeclarationCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 8,
+                  height: 8,
                   decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: accent.withValues(alpha: 0.22)),
+                    color: accent,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Icon(_toolIcon(entry.tool), size: 18, color: accent),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     entry.tool,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textPrimary,
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       fontFamily: 'FiraCode',
                       fontSize: 14,
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: complex
-                        ? colors.info.withValues(alpha: 0.1)
-                        : colors.accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    complex ? '自定义' : '版本',
+                if (complex)
+                  Text(
+                    '自定义',
                     style: TextStyle(
-                      color: complex ? colors.info : colors.accent,
+                      color: colors.info,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (complex) ...[
-              Text(
-                '自定义下载源配置',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-            ],
+            const SizedBox(height: 10),
             Text(
               entry.value,
-              maxLines: complex ? 3 : 2,
-              overflow: TextOverflow.ellipsis,
+              maxLines: complex ? 3 : 1,
+              overflow: complex ? TextOverflow.ellipsis : TextOverflow.fade,
               style: TextStyle(
                 color: complex ? colors.textMuted : colors.textPrimary,
                 fontFamily: 'FiraCode',
-                fontSize: complex ? 11 : 22,
+                fontSize: complex ? 11 : 18,
                 fontWeight: complex ? FontWeight.w500 : FontWeight.w800,
                 height: complex ? 1.4 : 1.15,
               ),
@@ -1752,19 +1726,6 @@ List<_ToolDeclarationEntry> _parseToolDeclarationLines(String content) {
 
 bool _isComplexToolValue(String value) {
   return value.length > 48 || value.contains('{') || value.contains('://');
-}
-
-IconData _toolIcon(String tool) {
-  return switch (tool.toLowerCase()) {
-    'flutter' => Icons.flutter_dash_rounded,
-    'java' => Icons.coffee_rounded,
-    'node' || 'npm' || 'pnpm' || 'bun' => Icons.code_rounded,
-    'python' => Icons.terminal_rounded,
-    'go' => Icons.bolt_rounded,
-    'rust' => Icons.memory_rounded,
-    'maven' => Icons.build_rounded,
-    _ => Icons.handyman_rounded,
-  };
 }
 
 Color _toolAccentColor(BuildContext context, String tool) {
@@ -1829,6 +1790,8 @@ class _RuntimeSectionSummary extends StatelessWidget {
         .toList(growable: false);
 
     return AppPanel(
+      radius: 10,
+      showShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
