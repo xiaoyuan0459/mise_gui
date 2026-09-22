@@ -172,12 +172,13 @@ bool isMiseCommandUnavailable(Object error) {
   final stderr = error.result.stderr.toLowerCase();
   final message = error.message.toLowerCase();
 
+  // 只依据"命令无法启动"这类启动级错误来判定 mise 缺失：
+  // 避免将工具自身安装/检查输出里的 "not found" 误判成 mise 未安装。
   return message.contains('unable to launch mise cli') ||
       stderr.contains('no such file or directory') ||
       stderr.contains('cannot find the file specified') ||
       stderr.contains('failed to execvp') ||
-      stderr.contains('failed to start') ||
-      stderr.contains('not found');
+      stderr.contains('failed to start');
 }
 
 String recommendedMiseInstallCommand() {
@@ -485,6 +486,8 @@ class LocalMiseProcessService implements MiseProcessService {
     final shellEnvironment = shellEnvironmentResult.environment;
     final homeDirectory =
         shellEnvironment?['HOME'] ?? Platform.environment['HOME'];
+    final windowsUserProfile = Platform.environment['USERPROFILE'];
+
     final homeCandidates = <String>[
       if (homeDirectory != null) ...<String>[
         '$homeDirectory/.local/bin/mise',
@@ -494,17 +497,27 @@ class LocalMiseProcessService implements MiseProcessService {
       ],
     ];
 
+    final fallbackExecutables = _fallbackExecutablePaths;
     final pathCandidates = <String>[
       ..._resolvePathCandidates(shellEnvironment?['PATH']),
       ..._resolvePathCandidates(Platform.environment['PATH']),
       ...homeCandidates,
-      ..._fallbackExecutablePaths,
+      // Windows 上的默认安装位置（winget / scoop 通常落到 %USERPROFILE%\.local\bin）。
+      if (windowsUserProfile != null && windowsUserProfile.isNotEmpty) ...<String>[
+        '$windowsUserProfile\\.local\\bin\\mise.exe',
+        '$windowsUserProfile\\.local\\share\\mise\\bin\\mise.exe',
+      ],
+      ...fallbackExecutables,
     ];
 
     for (final candidate in pathCandidates) {
       final file = File(candidate);
       if (await file.exists()) {
-        return file.resolveSymbolicLinks();
+        try {
+          return await file.resolveSymbolicLinks();
+        } catch (_) {
+          return candidate;
+        }
       }
     }
 
@@ -518,13 +531,16 @@ class LocalMiseProcessService implements MiseProcessService {
 
     final seen = <String>{};
     final candidates = <String>[];
+    final extensions = Platform.isWindows ? const ['.exe', '.cmd', ''] : const [''];
     for (final entry in rawPath.split(Platform.pathSeparator)) {
       if (entry.isEmpty) {
         continue;
       }
-      final candidate = '$entry/mise';
-      if (seen.add(candidate)) {
-        candidates.add(candidate);
+      for (final ext in extensions) {
+        final candidate = '$entry/mise$ext';
+        if (seen.add(candidate)) {
+          candidates.add(candidate);
+        }
       }
     }
     return candidates;
@@ -562,9 +578,12 @@ class LocalMiseProcessService implements MiseProcessService {
 
     addPathEntries(shellEnvironment?['PATH']);
     addPathEntries(parent['PATH']);
-    addPathEntries('/opt/homebrew/bin:/opt/homebrew/sbin');
-    addPathEntries('/usr/local/bin:/usr/local/sbin');
-    addPathEntries('/usr/bin:/bin:/usr/sbin:/sbin');
+    // POSIX 固定目录只在非 Windows 下注入，避免把无意义的斜杠路径混进 Windows 的 PATH。
+    if (!Platform.isWindows) {
+      addPathEntries('/opt/homebrew/bin:/opt/homebrew/sbin');
+      addPathEntries('/usr/local/bin:/usr/local/sbin');
+      addPathEntries('/usr/bin:/bin:/usr/sbin:/sbin');
+    }
 
     final homeDirectory = shellEnvironment?['HOME'] ?? parent['HOME'];
     if (homeDirectory != null && homeDirectory.isNotEmpty) {

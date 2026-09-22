@@ -181,4 +181,35 @@ void main() {
       isFalse,
     );
   });
+
+  test('isMiseCommandUnavailable ignores generic not found in stderr', () {
+    // 工具自身安装/检查输出里的 "not found" 不应被误判成 mise 缺失。
+    final error = MiseProcessException(
+      message: 'mise command failed with exit code 1',
+      result: const MiseCommandResult(
+        request: MiseCommandRequest(arguments: <String>['install', 'x']),
+        stdout: '',
+        stderr: 'mise x 1.0.0 failed: binary not found in archive\n',
+        exitCode: 1,
+        duration: Duration.zero,
+      ),
+    );
+
+    expect(isMiseCommandUnavailable(error), isFalse);
+  });
+
+  test('isMiseCommandUnavailable detects launch-level failure', () {
+    final error = MiseProcessException(
+      message: 'Unable to launch mise CLI from the desktop app',
+      result: const MiseCommandResult(
+        request: MiseCommandRequest(arguments: <String>['--version']),
+        stdout: '',
+        stderr: 'foo: command not found\n',
+        exitCode: 127,
+        duration: Duration.zero,
+      ),
+    );
+
+    expect(isMiseCommandUnavailable(error), isTrue);
+  });
 }
