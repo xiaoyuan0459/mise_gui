@@ -117,9 +117,7 @@ final miseCliServiceProvider = Provider<MiseCliService>(
 );
 
 final configServiceProvider = Provider<ConfigService>(
-  (ref) => LiveConfigService(
-    queryService: ref.watch(miseQueryServiceProvider),
-  ),
+  (ref) => LiveConfigService(queryService: ref.watch(miseQueryServiceProvider)),
 );
 
 final configWatchServiceProvider = Provider<ConfigWatchService>(

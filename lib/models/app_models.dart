@@ -605,7 +605,8 @@ class ConfigManagedToolEntry {
   /// 远端可用版本。
   final List<String> remoteVersions;
 
-  bool get hasDeclared => declaredVersion != null && declaredVersion!.isNotEmpty;
+  bool get hasDeclared =>
+      declaredVersion != null && declaredVersion!.isNotEmpty;
   bool get hasInstalled => installedVersions.isNotEmpty;
 
   /// 去重后的候选版本集合（已安装 + 远端），已声明版本优先排在前面。
@@ -628,17 +629,13 @@ class ConfigManagedToolEntry {
 
 /// 全局配置"管理的工具与版本"数据。
 class ConfigManagedToolsData {
-  const ConfigManagedToolsData({
-    required this.document,
-    required this.entries,
-  });
+  const ConfigManagedToolsData({required this.document, required this.entries});
 
   /// 对应的全局配置文件。
   final ConfigDocumentData document;
   final List<ConfigManagedToolEntry> entries;
 
-  int get declaredCount =>
-      entries.where((entry) => entry.hasDeclared).length;
+  int get declaredCount => entries.where((entry) => entry.hasDeclared).length;
 }
 
 class DiagnoseCheck {

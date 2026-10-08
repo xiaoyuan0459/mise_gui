@@ -735,7 +735,9 @@ class LiveMiseCliService implements MiseCliService {
 
     return switch (source.type) {
       'mise.toml' =>
-        (source.path != null && isGlobalMiseConfigPath(source.path!)) ? '全局' : '项目',
+        (source.path != null && isGlobalMiseConfigPath(source.path!))
+            ? '全局'
+            : '项目',
       _ => source.type,
     };
   }

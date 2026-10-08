@@ -422,10 +422,7 @@ class LiveConfigService implements ConfigService {
           entry.key: entry.value.map((item) => item.version).toList(),
       };
 
-      final tools = <String>{
-        ...declared.keys,
-        ...installedByTool.keys,
-      };
+      final tools = <String>{...declared.keys, ...installedByTool.keys};
       if (tools.isEmpty) {
         return null;
       }
@@ -1187,7 +1184,9 @@ String buildManagedToolsConfigContent({
       if (entry.value.trim().isEmpty) {
         continue;
       }
-      next.add('${entry.key} = "${_escapeManagedTomlValue(entry.value.trim())}"');
+      next.add(
+        '${entry.key} = "${_escapeManagedTomlValue(entry.value.trim())}"',
+      );
     }
   }
 
