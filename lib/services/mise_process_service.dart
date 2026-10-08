@@ -497,7 +497,7 @@ class LocalMiseProcessService implements MiseProcessService {
       ],
     ];
 
-    final fallbackExecutables = _fallbackExecutablePaths;
+    const fallbackExecutables = _fallbackExecutablePaths;
     final pathCandidates = <String>[
       ..._resolvePathCandidates(shellEnvironment?['PATH']),
       ..._resolvePathCandidates(Platform.environment['PATH']),

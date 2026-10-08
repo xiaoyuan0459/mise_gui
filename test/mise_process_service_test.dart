@@ -100,45 +100,44 @@ void main() {
     );
   });
 
-  test(
-    'collectWindowsMiseShimCandidates puts MISE_DATA_DIR shims first',
-    () {
-      final candidates = collectWindowsMiseShimCandidates(
-        environment: const {
-          'MISE_DATA_DIR': r'D:\data\mise\mise-data',
-          'LOCALAPPDATA': r'C:\Users\demo\AppData\Local',
-          'USERPROFILE': r'C:\Users\demo',
-        },
-      );
+  test('collectWindowsMiseShimCandidates puts MISE_DATA_DIR shims first', () {
+    final candidates = collectWindowsMiseShimCandidates(
+      environment: const {
+        'MISE_DATA_DIR': r'D:\data\mise\mise-data',
+        'LOCALAPPDATA': r'C:\Users\demo\AppData\Local',
+        'USERPROFILE': r'C:\Users\demo',
+      },
+    );
 
-      expect(candidates.first, r'D:\data\mise\mise-data\shims');
-      expect(candidates, contains(r'C:\Users\demo\AppData\Local\mise\shims'));
-      expect(
-        candidates,
-        contains(r'C:\Users\demo\.local\share\mise\shims'),
-      );
-    },
-  );
+    expect(candidates.first, r'D:\data\mise\mise-data\shims');
+    expect(candidates, contains(r'C:\Users\demo\AppData\Local\mise\shims'));
+    expect(candidates, contains(r'C:\Users\demo\.local\share\mise\shims'));
+  });
 
   test('looksLikeMiseShimsEntry recognizes custom MISE_DATA_DIR layout', () {
     expect(looksLikeMiseShimsEntry(r'd:\data\mise\mise-data\shims'), isTrue);
-    expect(looksLikeMiseShimsEntry(r'c:\users\demo\appdata\local\mise\shims'), isTrue);
+    expect(
+      looksLikeMiseShimsEntry(r'c:\users\demo\appdata\local\mise\shims'),
+      isTrue,
+    );
     expect(looksLikeMiseShimsEntry(r'c:\some\other\bin'), isFalse);
     expect(looksLikeMiseShimsEntry(r'd:\tools\scoop\shims'), isFalse);
   });
 
   test('explicitMiseGlobalConfigPath prefers MISE_GLOBAL_CONFIG_FILE', () {
     expect(
-      explicitMiseGlobalConfigPath(environment: const {
-        'MISE_GLOBAL_CONFIG_FILE': r'C:\conf\my-config.toml',
-        'MISE_CONFIG_DIR': r'C:\conf\mise',
-      }),
+      explicitMiseGlobalConfigPath(
+        environment: const {
+          'MISE_GLOBAL_CONFIG_FILE': r'C:\conf\my-config.toml',
+          'MISE_CONFIG_DIR': r'C:\conf\mise',
+        },
+      ),
       r'C:\conf\my-config.toml',
     );
     expect(
-      explicitMiseGlobalConfigPath(environment: const {
-        'MISE_CONFIG_DIR': r'/opt/mise-conf',
-      }),
+      explicitMiseGlobalConfigPath(
+        environment: const {'MISE_CONFIG_DIR': r'/opt/mise-conf'},
+      ),
       '/opt/mise-conf/config.toml',
     );
     expect(
@@ -153,9 +152,9 @@ void main() {
       '/home/demo/.config/mise/config.toml',
     );
     expect(
-      resolveGlobalMiseConfigPath(environment: const {
-        'MISE_CONFIG_DIR': '/custom/mise',
-      }),
+      resolveGlobalMiseConfigPath(
+        environment: const {'MISE_CONFIG_DIR': '/custom/mise'},
+      ),
       '/custom/mise/config.toml',
     );
   });
@@ -169,24 +168,26 @@ void main() {
       isTrue,
     );
     expect(
-      isGlobalMiseConfigPath('/custom/mise/config.toml', environment: const {
-        'MISE_CONFIG_DIR': '/custom/mise',
-      }),
+      isGlobalMiseConfigPath(
+        '/custom/mise/config.toml',
+        environment: const {'MISE_CONFIG_DIR': '/custom/mise'},
+      ),
       isTrue,
     );
     expect(
-      isGlobalMiseConfigPath('/repo/mise.toml', environment: const {
-        'HOME': '/home/demo',
-      }),
+      isGlobalMiseConfigPath(
+        '/repo/mise.toml',
+        environment: const {'HOME': '/home/demo'},
+      ),
       isFalse,
     );
   });
 
   test('isMiseCommandUnavailable ignores generic not found in stderr', () {
     // 工具自身安装/检查输出里的 "not found" 不应被误判成 mise 缺失。
-    final error = MiseProcessException(
+    const error = MiseProcessException(
       message: 'mise command failed with exit code 1',
-      result: const MiseCommandResult(
+      result: MiseCommandResult(
         request: MiseCommandRequest(arguments: <String>['install', 'x']),
         stdout: '',
         stderr: 'mise x 1.0.0 failed: binary not found in archive\n',
@@ -199,9 +200,9 @@ void main() {
   });
 
   test('isMiseCommandUnavailable detects launch-level failure', () {
-    final error = MiseProcessException(
+    const error = MiseProcessException(
       message: 'Unable to launch mise CLI from the desktop app',
-      result: const MiseCommandResult(
+      result: MiseCommandResult(
         request: MiseCommandRequest(arguments: <String>['--version']),
         stdout: '',
         stderr: 'foo: command not found\n',
