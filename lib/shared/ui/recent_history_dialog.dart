@@ -129,9 +129,16 @@ class _RecentHistoryDialogState extends ConsumerState<RecentHistoryDialog> {
 }
 
 class RecentHistoryListTile extends StatelessWidget {
-  const RecentHistoryListTile({super.key, required this.entry});
+  const RecentHistoryListTile({
+    super.key,
+    required this.entry,
+    this.compact = false,
+  });
 
   final HistoryEntry entry;
+
+  /// 紧凑模式：只留状态、时间、命令与一行说明，用于总览页的"最近活动"。
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -139,15 +146,73 @@ class RecentHistoryListTile extends StatelessWidget {
     final preview = entry.isFailure
         ? (entry.stderrPreview ?? entry.stdoutPreview)
         : (entry.stdoutPreview ?? entry.stderrPreview);
+    final durationLabel = entry.durationMs == null
+        ? null
+        : '耗时 ${_formatDuration(entry.durationMs!)}';
+
+    if (compact) {
+      return Material(
+        color: colors.panelRaised.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => showHistoryEntryDialog(context, entry: entry),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _HistoryStatusMeta(entry: entry),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: colors.textMuted.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SelectableText(
+                  entry.command,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontFamily: kMonoFontFamily,
+                    fontFamilyFallback: kMonoFontFallback,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (entry.detail.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textMuted,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Material(
       color: colors.panelRaised.withValues(alpha: 0.82),
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         onTap: () => showHistoryEntryDialog(context, entry: entry),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -155,33 +220,50 @@ class RecentHistoryListTile extends StatelessWidget {
                 children: [
                   _HistoryStatusMeta(entry: entry),
                   const Spacer(),
+                  if (durationLabel != null)
+                    Text(
+                      durationLabel,
+                      style: TextStyle(
+                        color: colors.textMuted.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        fontFamily: kMonoFontFamily,
+                        fontFamilyFallback: kMonoFontFallback,
+                      ),
+                    ),
+                  const SizedBox(width: 8),
                   Icon(
                     Icons.chevron_right_rounded,
+                    size: 20,
                     color: colors.textMuted.withValues(alpha: 0.74),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               SelectableText(
                 entry.command,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontFamily: 'FiraCode',
-                  fontSize: 15,
+                  fontFamily: kMonoFontFamily,
+                  fontFamilyFallback: kMonoFontFallback,
+                  fontSize: 14.5,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                entry.detail,
-                style: TextStyle(color: colors.textMuted, height: 1.5),
-              ),
+              if (entry.detail.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  entry.detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textMuted, height: 1.45),
+                ),
+              ],
               if (preview != null && preview.trim().isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: colors.backgroundSoft.withValues(alpha: 0.78),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: colors.border),
                   ),
                   child: Text(
@@ -192,7 +274,8 @@ class RecentHistoryListTile extends StatelessWidget {
                       color: entry.isFailure
                           ? colors.warning
                           : colors.textMuted,
-                      fontFamily: 'FiraCode',
+                      fontFamily: kMonoFontFamily,
+                      fontFamilyFallback: kMonoFontFallback,
                       fontSize: 12,
                       height: 1.45,
                     ),
@@ -204,6 +287,18 @@ class RecentHistoryListTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _formatDuration(int milliseconds) {
+    if (milliseconds < 1000) {
+      return '${milliseconds}ms';
+    }
+    final seconds = milliseconds / 1000;
+    if (seconds < 60) {
+      return '${seconds.toStringAsFixed(1)}s';
+    }
+    final minutes = seconds / 60;
+    return '${minutes.toStringAsFixed(1)}min';
   }
 }
 
@@ -253,7 +348,8 @@ class _HistoryStatusMeta extends StatelessWidget {
           style: TextStyle(
             color: colors.textMuted.withValues(alpha: 0.92),
             fontSize: 12,
-            fontFamily: 'FiraCode',
+            fontFamily: kMonoFontFamily,
+            fontFamilyFallback: kMonoFontFallback,
           ),
         ),
       ],

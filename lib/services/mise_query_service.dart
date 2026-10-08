@@ -60,6 +60,19 @@ class MiseCurrentToolRef {
   final String rawLine;
 }
 
+/// mise 注册表里的一个可用工具（`mise registry`）。
+class MiseRegistryToolRef {
+  const MiseRegistryToolRef({
+    required this.name,
+    this.description,
+    this.aliases = const <String>[],
+  });
+
+  final String name;
+  final String? description;
+  final List<String> aliases;
+}
+
 class MiseResolvedExecutableRef {
   const MiseResolvedExecutableRef({
     required this.subject,
@@ -111,6 +124,11 @@ abstract class MiseQueryService {
     String? workingDirectory,
   });
 
+  /// 读取 mise 注册表里的可用工具列表，供"安装工具"下拉选择使用。
+  Future<List<MiseRegistryToolRef>> fetchRegistryTools({
+    String? workingDirectory,
+  });
+
   Future<Map<String, dynamic>> fetchOutdated({String? workingDirectory});
 
   Future<Map<String, dynamic>> fetchSettings({String? workingDirectory});
@@ -141,9 +159,7 @@ class MiseConfigListRef {
 
   final List<MiseConfigEntryRef> configs;
 
-  String? globalConfigPathFor({
-    required Map<String, String> environment,
-  }) {
+  String? globalConfigPathFor({required Map<String, String> environment}) {
     for (final config in configs) {
       if (isGlobalMiseConfigPath(config.path, environment: environment)) {
         return config.path;
@@ -277,6 +293,52 @@ class CliMiseQueryService implements MiseQueryService {
   }
 
   @override
+  Future<List<MiseRegistryToolRef>> fetchRegistryTools({
+    String? workingDirectory,
+  }) async {
+    final result = await _processService.run(
+      MiseCommandRequest(
+        arguments: const ['registry', '--json'],
+        workingDirectory: workingDirectory,
+        timeout: const Duration(seconds: 30),
+      ),
+    );
+
+    final json = jsonDecode(result.stdout);
+    if (json is! List) {
+      return const <MiseRegistryToolRef>[];
+    }
+
+    final tools = <MiseRegistryToolRef>[];
+    final seen = <String>{};
+    for (final item in json) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+      final name = item['short']?.toString().trim();
+      if (name == null || name.isEmpty || !seen.add(name)) {
+        continue;
+      }
+      final rawAliases = item['aliases'];
+      final aliases = rawAliases is List
+          ? rawAliases
+                .map((alias) => alias.toString().trim())
+                .where((alias) => alias.isNotEmpty)
+                .toList(growable: false)
+          : const <String>[];
+      tools.add(
+        MiseRegistryToolRef(
+          name: name,
+          description: item['description']?.toString().trim(),
+          aliases: aliases,
+        ),
+      );
+    }
+    tools.sort((a, b) => a.name.compareTo(b.name));
+    return tools;
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchOutdated({String? workingDirectory}) async {
     final result = await _processService.run(
       MiseCommandRequest(
@@ -368,9 +430,7 @@ class CliMiseQueryService implements MiseQueryService {
   }
 
   @override
-  Future<MiseConfigListRef> fetchConfigList({
-    String? workingDirectory,
-  }) async {
+  Future<MiseConfigListRef> fetchConfigList({String? workingDirectory}) async {
     final result = await _processService.run(
       MiseCommandRequest(
         arguments: const ['config', 'ls', '--json'],

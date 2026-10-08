@@ -503,7 +503,8 @@ class LocalMiseProcessService implements MiseProcessService {
       ..._resolvePathCandidates(Platform.environment['PATH']),
       ...homeCandidates,
       // Windows 上的默认安装位置（winget / scoop 通常落到 %USERPROFILE%\.local\bin）。
-      if (windowsUserProfile != null && windowsUserProfile.isNotEmpty) ...<String>[
+      if (windowsUserProfile != null &&
+          windowsUserProfile.isNotEmpty) ...<String>[
         '$windowsUserProfile\\.local\\bin\\mise.exe',
         '$windowsUserProfile\\.local\\share\\mise\\bin\\mise.exe',
       ],
@@ -531,7 +532,9 @@ class LocalMiseProcessService implements MiseProcessService {
 
     final seen = <String>{};
     final candidates = <String>[];
-    final extensions = Platform.isWindows ? const ['.exe', '.cmd', ''] : const [''];
+    final extensions = Platform.isWindows
+        ? const ['.exe', '.cmd', '']
+        : const [''];
     for (final entry in rawPath.split(Platform.pathSeparator)) {
       if (entry.isEmpty) {
         continue;
@@ -599,8 +602,29 @@ class LocalMiseProcessService implements MiseProcessService {
     environment.addAll(
       readConfiguredMiseProxyEnvironmentSync(homeDirectory: homeDirectory),
     );
+    _applyWindowsSystemProxyFallback(environment);
     environment['PATH'] = pathEntries.join(Platform.pathSeparator);
     return environment;
+  }
+
+  /// 把 Windows 系统代理兜底合入 mise 子进程环境。
+  ///
+  /// 仅当环境里完全没有代理变量时才生效，避免覆盖用户显式设置。
+  void _applyWindowsSystemProxyFallback(Map<String, String> environment) {
+    final systemProxy = readWindowsSystemProxyEnvironmentSync();
+    if (systemProxy.isEmpty) {
+      return;
+    }
+
+    for (final entry in systemProxy.entries) {
+      final name = entry.key.toLowerCase();
+      final hasExplicitValue =
+          (environment[name]?.isNotEmpty ?? false) ||
+          (environment[name.toUpperCase()]?.isNotEmpty ?? false);
+      if (!hasExplicitValue) {
+        environment[name] = entry.value;
+      }
+    }
   }
 
   Future<ShellEnvironmentLoadResult> _loadShellEnvironment() {
@@ -782,12 +806,151 @@ void configureHttpClientProxy(
   Map<String, String>? environment,
 }) {
   final proxyEnvironment = <String, String>{
+    ...readWindowsSystemProxyEnvironmentSync(),
     ...Platform.environment,
     ...readConfiguredMiseProxyEnvironmentSync(),
     if (environment != null) ...environment,
   };
   client.findProxy = (uri) =>
       resolveHttpClientProxyConfiguration(uri, proxyEnvironment);
+}
+
+Map<String, String>? _windowsSystemProxyCache;
+
+/// 读取 Windows 系统代理（Internet 选项 → 连接 → 局域网设置）。
+///
+/// Dart 的 HttpClient 与 mise CLI 都不会自动读取这份系统级配置：用户只在
+/// 系统里挂了代理（Clash / v2ray 等）时，应用直连 GitHub 会出现 TLS 握手被
+/// 中断。这里把系统代理翻译成标准代理环境变量，作为最后兜底。
+Map<String, String> readWindowsSystemProxyEnvironmentSync() {
+  if (!Platform.isWindows) {
+    return const <String, String>{};
+  }
+
+  final cached = _windowsSystemProxyCache;
+  if (cached != null) {
+    return cached;
+  }
+  final resolved = _queryWindowsSystemProxy();
+  _windowsSystemProxyCache = resolved;
+  return resolved;
+}
+
+Map<String, String> _queryWindowsSystemProxy() {
+  const key =
+      r'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings';
+  ProcessResult result;
+  try {
+    result = Process.runSync('reg', ['query', key]);
+  } catch (_) {
+    return const <String, String>{};
+  }
+  if (result.exitCode != 0) {
+    return const <String, String>{};
+  }
+
+  final values = <String, String>{};
+  for (final line in (result.stdout ?? '').toString().split('\n')) {
+    final match = RegExp(r'^\s+(\S+)\s+REG_\w+\s+(.*)$').firstMatch(line);
+    if (match == null) {
+      continue;
+    }
+    values[match.group(1)!] = match.group(2)!.trim();
+  }
+
+  final enabled = values['ProxyEnable']?.toLowerCase();
+  if (enabled != '0x1' && enabled != '1') {
+    return const <String, String>{};
+  }
+
+  final server = values['ProxyServer']?.trim() ?? '';
+  if (server.isEmpty) {
+    return const <String, String>{};
+  }
+
+  String? httpProxy;
+  String? httpsProxy;
+  String? socksProxy;
+  if (server.contains('=')) {
+    for (final entry in server.split(';')) {
+      final separatorIndex = entry.indexOf('=');
+      if (separatorIndex <= 0) {
+        continue;
+      }
+      final scheme = entry.substring(0, separatorIndex).trim().toLowerCase();
+      final address = _normalizeWindowsProxyAddress(
+        entry.substring(separatorIndex + 1),
+      );
+      if (address == null) {
+        continue;
+      }
+      if (scheme == 'http') {
+        httpProxy = address;
+      } else if (scheme == 'https') {
+        httpsProxy = address;
+      } else if (scheme == 'socks') {
+        socksProxy = address;
+      }
+    }
+  } else {
+    httpProxy = _normalizeWindowsProxyAddress(server);
+    httpsProxy = httpProxy;
+  }
+
+  final environment = <String, String>{};
+  final sharedProxy = httpProxy ?? httpsProxy ?? socksProxy;
+  if (sharedProxy != null) {
+    environment['http_proxy'] = httpProxy ?? sharedProxy;
+    environment['https_proxy'] = httpsProxy ?? sharedProxy;
+  }
+  // SOCKS 代理额外写入 all_proxy，部分实现只识别这一项。
+  if (socksProxy != null) {
+    environment['all_proxy'] = socksProxy;
+  }
+
+  final noProxy = _windowsProxyOverrideToNoProxy(values['ProxyOverride']);
+  if (noProxy != null) {
+    environment['no_proxy'] = noProxy;
+  }
+  return environment;
+}
+
+String? _normalizeWindowsProxyAddress(String raw) {
+  final value = raw.trim();
+  if (value.isEmpty) {
+    return null;
+  }
+  final uri = Uri.tryParse(value.contains('://') ? value : 'http://$value');
+  if (uri == null || uri.host.isEmpty || uri.port == 0) {
+    return null;
+  }
+  return uri.toString();
+}
+
+String? _windowsProxyOverrideToNoProxy(String? raw) {
+  final value = raw?.trim();
+  if (value == null || value.isEmpty) {
+    return null;
+  }
+
+  final entries = <String>[];
+  var includesLocal = false;
+  for (final rawEntry in value.split(';')) {
+    final entry = rawEntry.trim();
+    if (entry.isEmpty) {
+      continue;
+    }
+    if (entry.toLowerCase() == '<local>') {
+      includesLocal = true;
+      continue;
+    }
+    entries.add(entry);
+  }
+  if (includesLocal) {
+    entries.add('localhost');
+    entries.add('127.0.0.1');
+  }
+  return entries.isEmpty ? null : entries.join(',');
 }
 
 String resolveHttpClientProxyConfiguration(
@@ -908,10 +1071,7 @@ String? resolveGlobalMiseConfigPath({Map<String, String>? environment}) {
 ///
 /// 依据 [resolveGlobalMiseConfigPath] 解析出的真实路径，结合 `.config/mise`
 /// 目录名作为兜底判断，从而兼容 `\\\\` 与 `/` 两种分隔符。
-bool isGlobalMiseConfigPath(
-  String path, {
-  Map<String, String>? environment,
-}) {
+bool isGlobalMiseConfigPath(String path, {Map<String, String>? environment}) {
   final env = environment ?? Platform.environment;
   final resolved = resolveGlobalMiseConfigPath(environment: env);
   if (resolved != null && _samePath(path, resolved)) {
@@ -924,8 +1084,10 @@ bool isGlobalMiseConfigPath(
 
 bool _samePath(String a, String b) {
   String normalize(String value) {
-    final result =
-        value.replaceAll('\\', '/').toLowerCase().replaceAll(RegExp(r'/+$'), '');
+    final result = value
+        .replaceAll('\\', '/')
+        .toLowerCase()
+        .replaceAll(RegExp(r'/+$'), '');
     return result;
   }
 
@@ -1090,8 +1252,9 @@ bool looksLikeMiseShimsEntry(String normalizedEntry) {
     normalizedEntry.length - '\\shims'.length,
   );
   final lastSeparator = parent.lastIndexOf('\\');
-  final dirName =
-      lastSeparator >= 0 ? parent.substring(lastSeparator + 1) : parent;
+  final dirName = lastSeparator >= 0
+      ? parent.substring(lastSeparator + 1)
+      : parent;
   return dirName == 'mise' || dirName.startsWith('mise');
 }
 

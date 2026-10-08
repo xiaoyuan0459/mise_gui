@@ -206,7 +206,7 @@ void main() {
   testWidgets('loads dashboard shell', (WidgetTester tester) async {
     await pumpMiseGuiApp(tester);
 
-    expect(find.text('总览'), findsWidgets);
+    expect(find.text('环境'), findsWidgets);
     expect(find.text('工具'), findsWidgets);
     expect(find.text('项目'), findsWidgets);
   });
@@ -288,7 +288,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 220));
 
-    await tester.tap(find.text('Node.js').first);
+    final nodeItem = find.byKey(const ValueKey('tool-accordion-node'));
+    await tester.ensureVisible(nodeItem);
+    await tester.tap(nodeItem);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 220));
 
@@ -331,7 +333,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 220));
 
-    await tester.tap(find.text('Node.js').first);
+    final nodeItem = find.byKey(const ValueKey('tool-accordion-node'));
+    await tester.ensureVisible(nodeItem);
+    await tester.tap(nodeItem);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 220));
 

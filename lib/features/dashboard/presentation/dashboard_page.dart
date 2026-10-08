@@ -10,9 +10,11 @@ import 'package:mise_gui/features/dashboard/application/dashboard_provider.dart'
 import 'package:mise_gui/models/app_models.dart';
 import 'package:mise_gui/services/mise_self_update_service.dart';
 import 'package:mise_gui/services/mise_process_service.dart';
+import 'package:mise_gui/shared/format/time_format.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
+import 'package:mise_gui/shared/ui/inline_notice_bar.dart';
 import 'package:mise_gui/shared/ui/panel_header.dart';
 import 'package:mise_gui/shared/ui/recent_history_dialog.dart';
 
@@ -193,74 +195,38 @@ class _DashboardOverview extends StatelessWidget {
 
   static const _columnGap = 20.0;
   static const _sectionGap = 16.0;
-  static const _leftColumnWidth = 420.0;
-
-  SummaryMetric? get _systemMetric {
-    for (final metric in snapshot.metrics) {
-      if (metric.label == '当前系统') {
-        return metric;
-      }
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 1280 && _systemMetric != null) {
-          return _buildWideColumns(context);
-        }
-        return _buildSingleColumn(context);
+        final wide = constraints.maxWidth >= 1160;
+        const updatePanel = _MiseSelfUpdatePanel();
+        final historyPanel = _RecentHistoryPanel(
+          entries: snapshot.recentHistory,
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _DashboardMetricGrid(metrics: snapshot.metrics),
+            const SizedBox(height: _sectionGap),
+            if (!wide) ...[
+              updatePanel,
+              const SizedBox(height: _sectionGap),
+              historyPanel,
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(flex: 11, child: updatePanel),
+                  const SizedBox(width: _columnGap),
+                  Expanded(flex: 13, child: historyPanel),
+                ],
+              ),
+          ],
+        );
       },
-    );
-  }
-
-  Widget _buildSingleColumn(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _DashboardMetricGrid(metrics: snapshot.metrics),
-        const SizedBox(height: _sectionGap),
-        const _MiseSelfUpdatePanel(),
-        const SizedBox(height: _sectionGap),
-        _RecentHistoryPanel(entries: snapshot.recentHistory),
-      ],
-    );
-  }
-
-  Widget _buildWideColumns(BuildContext context) {
-    final system = _systemMetric!;
-    final compactMetrics = snapshot.metrics
-        .where((metric) => metric.label != '当前系统')
-        .toList(growable: false);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: _leftColumnWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _DashboardMetricCard(metric: system),
-              const SizedBox(height: _sectionGap),
-              const _MiseSelfUpdatePanel(),
-            ],
-          ),
-        ),
-        const SizedBox(width: _columnGap),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _CompactMetricsGrid(metrics: compactMetrics),
-              const SizedBox(height: _sectionGap),
-              _RecentHistoryPanel(entries: snapshot.recentHistory),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -426,6 +392,7 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
   MiseSelfUpdateInfo? _updateInfo;
   var _checking = false;
   var _updating = false;
+  String? _checkErrorMessage;
   final List<String> _logs = [];
 
   Future<void> _checkForUpdate({bool preserveLogs = false}) async {
@@ -448,6 +415,7 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
       }
       setState(() {
         _updateInfo = info;
+        _checkErrorMessage = null;
       });
       _showFeedback(
         info.updateAvailable
@@ -455,14 +423,12 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
             : 'mise 已是最新版本。',
       );
     } catch (error) {
-      _showFeedback('检查 mise 更新失败，请稍后重试。');
       if (mounted) {
         setState(() {
-          _logs
-            ..clear()
-            ..add(error.toString());
+          _checkErrorMessage = describeMiseUpdateCheckFailure(error);
         });
       }
+      _showFeedback('检查 mise 更新失败，面板里给出了排查建议。');
     } finally {
       if (mounted) {
         setState(() => _checking = false);
@@ -601,7 +567,7 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
     return AppPanel(
       padding: const EdgeInsets.all(20),
       radius: 20,
-      backgroundAlpha: 0.74,
+      backgroundAlpha: 0.88,
       borderAlpha: 0.5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,6 +608,19 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
               ],
             ),
           ),
+          if (_checkErrorMessage != null) ...[
+            const SizedBox(height: 14),
+            InlineNoticeBar(
+              notice: InlineNotice(
+                title: '检查更新失败',
+                message: _checkErrorMessage!,
+                level: HealthLevel.warning,
+              ),
+              actionLabel: '重试',
+              actionIcon: Icons.refresh_rounded,
+              onAction: () => _checkForUpdate(),
+            ),
+          ],
           if (info != null) ...[
             const SizedBox(height: 14),
             _MiseUpdateVersionRow(info: info),
@@ -680,12 +659,7 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
     }
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   void _showFeedback(String message) {
     if (!mounted) {
@@ -767,7 +741,8 @@ class _VersionChip extends StatelessWidget {
             style: TextStyle(
               color: colors.textPrimary,
               fontWeight: FontWeight.w700,
-              fontFamily: mono ? 'FiraCode' : null,
+              fontFamily: mono ? kMonoFontFamily : null,
+              fontFamilyFallback: mono ? kMonoFontFallback : null,
             ),
           ),
         ],
@@ -806,7 +781,8 @@ class _MiseSelfUpdateLog extends StatelessWidget {
             line,
             style: TextStyle(
               color: colors.textMuted,
-              fontFamily: 'FiraCode',
+              fontFamily: kMonoFontFamily,
+              fontFamilyFallback: kMonoFontFallback,
               fontSize: 12,
               height: 1.4,
             ),
@@ -846,9 +822,9 @@ class _RecentHistoryPanel extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
-              color: colors.panel.withValues(alpha: 0.52),
+              color: colors.panel.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border.withValues(alpha: 0.38)),
+              border: Border.all(color: colors.border.withValues(alpha: 0.44)),
             ),
             child: Text(
               '当前还没有最近操作记录。',
@@ -860,10 +836,10 @@ class _RecentHistoryPanel extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: entries.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final entry = entries[index];
-              return RecentHistoryListTile(entry: entry);
+              return RecentHistoryListTile(entry: entry, compact: true);
             },
           ),
       ],
@@ -908,7 +884,7 @@ class _DashboardMetricCard extends StatelessWidget {
           ? const EdgeInsets.fromLTRB(18, 18, 18, 16)
           : const EdgeInsets.all(22),
       radius: cardRadius,
-      backgroundAlpha: 0.74,
+      backgroundAlpha: 0.86,
       borderAlpha: 0.5,
       child: child,
     );

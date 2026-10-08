@@ -261,6 +261,41 @@ abstract class MiseSelfUpdateService {
   });
 }
 
+/// 检查更新时的网络异常。
+///
+/// [message] 已经是面向用户的说明，界面上可以直接展示。
+class MiseSelfUpdateNetworkException implements Exception {
+  const MiseSelfUpdateNetworkException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// 检查更新时的网络异常描述。
+///
+/// 供 UI 展示更贴近原因的提示：例如 Windows 上未配置任何代理时，
+/// 直连 api.github.com 的 TLS 握手会被中断，需要提示用户检查网络 / 代理。
+String describeMiseUpdateCheckFailure(Object error) {
+  if (error is MiseSelfUpdateNetworkException) {
+    return error.message;
+  }
+  if (error is HandshakeException) {
+    return '连接 GitHub 时 TLS 握手被中断（HandshakeException）。'
+        ' 常见原因是当前网络需要代理，但应用没有读到可用的代理配置。'
+        ' 可以在「配置 → 运行时 / 代理 / 其它」里设置网络代理，或确认网络能直连 GitHub 后重试。';
+  }
+  if (error is SocketException) {
+    return '连接 GitHub 失败（${error.message}）。'
+        ' 请检查网络连接，或确认代理配置后重试。';
+  }
+  if (error is HttpException) {
+    return 'GitHub 返回了异常响应：${error.message}。请稍后重试。';
+  }
+  return '检查更新失败（$error），请稍后重试。';
+}
+
 class GitHubMiseSelfUpdateService implements MiseSelfUpdateService {
   const GitHubMiseSelfUpdateService({
     required MiseProcessService processService,
@@ -361,6 +396,26 @@ class GitHubMiseSelfUpdateService implements MiseSelfUpdateService {
   }
 
   Future<Map<String, dynamic>> _getJsonMap(String rawUrl) async {
+    // 网络抖动 / 握手中断时重试一次；仍然失败则抛出可读的异常信息。
+    for (var attempt = 0; ; attempt += 1) {
+      try {
+        return await _requestJsonMap(rawUrl);
+      } catch (error) {
+        final retryable =
+            error is HandshakeException ||
+            error is SocketException ||
+            error is TimeoutException;
+        if (!retryable || attempt >= 1) {
+          throw MiseSelfUpdateNetworkException(
+            describeMiseUpdateCheckFailure(error),
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> _requestJsonMap(String rawUrl) async {
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 8);
     configureHttpClientProxy(client);
@@ -379,9 +434,8 @@ class GitHubMiseSelfUpdateService implements MiseSelfUpdateService {
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException(
-          'Unexpected response ${response.statusCode} for $rawUrl',
-          uri: Uri.parse(rawUrl),
+        throw MiseSelfUpdateNetworkException(
+          'GitHub 接口返回 ${response.statusCode}，暂时无法确认最新版本。请稍后重试。',
         );
       }
       final decoded = jsonDecode(body);

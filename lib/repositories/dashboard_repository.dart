@@ -94,7 +94,7 @@ class DashboardRepository {
       ],
       signals: const [],
       toolSummary: toolSummary,
-      recentHistory: recentHistory.take(3).toList(growable: false),
+      recentHistory: recentHistory.take(5).toList(growable: false),
       riskHighlights: const [],
     );
   }

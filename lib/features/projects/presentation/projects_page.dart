@@ -12,6 +12,7 @@ import 'package:mise_gui/features/dashboard/application/dashboard_provider.dart'
 import 'package:mise_gui/features/projects/application/projects_provider.dart';
 import 'package:mise_gui/models/app_models.dart';
 import 'package:mise_gui/services/mise_process_service.dart';
+import 'package:mise_gui/shared/format/time_format.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
@@ -224,7 +225,8 @@ class _ProjectsPageState extends ConsumerState<ProjectsPage> {
                   risk.path,
                   style: TextStyle(
                     color: colors.textPrimary,
-                    fontFamily: 'FiraCode',
+                    fontFamily: kMonoFontFamily,
+                    fontFamilyFallback: kMonoFontFallback,
                     fontSize: 12,
                     height: 1.45,
                   ),
@@ -408,12 +410,7 @@ class _ProjectsPageState extends ConsumerState<ProjectsPage> {
     return paths.toList()..sort();
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 }
 
 class _ProjectCoverageLayout extends StatelessWidget {
@@ -441,7 +438,7 @@ class _ProjectCoverageLayout extends StatelessWidget {
         _ProjectsAutoRefresh(paths: watchPaths),
         LayoutBuilder(
           builder: (context, constraints) {
-            final stacked = constraints.maxWidth < 1180;
+            final stacked = constraints.maxWidth < 1120;
             if (stacked) {
               return Column(
                 children: [
@@ -452,7 +449,7 @@ class _ProjectCoverageLayout extends StatelessWidget {
                     onRemoveDirectory: onRemoveDirectory,
                     onToggleDirectory: onToggleDirectory,
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   _OverridesPanel(
                     directories: snapshot.scanDirectories,
                     projectCount: snapshot.projects.length,
@@ -466,7 +463,7 @@ class _ProjectCoverageLayout extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 350,
+                  width: 360,
                   child: _ScanDirectoriesPanel(
                     directories: snapshot.scanDirectories,
                     projects: snapshot.projects,
@@ -475,7 +472,7 @@ class _ProjectCoverageLayout extends StatelessWidget {
                     onToggleDirectory: onToggleDirectory,
                   ),
                 ),
-                const SizedBox(width: 18),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _OverridesPanel(
                     directories: snapshot.scanDirectories,
@@ -781,14 +778,9 @@ class _ScanDirectoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
-    final summary = _DirectoryScanSummary(
-      enabled: directory.enabled,
-      projectCount: projectCount,
-      overrideProjectCount: overrideProjectCount,
-    );
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(16),
@@ -804,34 +796,74 @@ class _ScanDirectoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      directory.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            directory.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _DirectoryStatusDot(enabled: directory.enabled),
+                      ],
                     ),
                     const SizedBox(height: 5),
                     Text(
                       directory.path,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: colors.textMuted,
-                        fontFamily: 'FiraCode',
-                        fontSize: 12,
-                        height: 1.45,
+                        fontFamily: kMonoFontFamily,
+                        fontFamilyFallback: kMonoFontFallback,
+                        fontSize: 11.5,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              _DirectoryStatusLabel(enabled: directory.enabled),
+              const SizedBox(width: 8),
+              _DangerIconButton(tooltip: '删除扫描目录', onPressed: onRemove),
             ],
           ),
           const SizedBox(height: 10),
-          _DirectorySummaryBanner(summary: summary),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _ScanFact(
+                icon: Icons.account_tree_rounded,
+                label: '$projectCount 个项目',
+                level: HealthLevel.info,
+              ),
+              if (overrideProjectCount > 0)
+                _ScanFact(
+                  icon: Icons.warning_amber_rounded,
+                  label: '$overrideProjectCount 个覆盖',
+                  level: HealthLevel.warning,
+                )
+              else
+                const _ScanFact(
+                  icon: Icons.check_circle_outline_rounded,
+                  label: '无覆盖',
+                  level: HealthLevel.healthy,
+                ),
+              if (!directory.enabled)
+                const _ScanFact(
+                  icon: Icons.pause_circle_outline_rounded,
+                  label: '已暂停扫描',
+                  level: HealthLevel.info,
+                ),
+            ],
+          ),
           if (projectCount > 0) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             _DirectoryProjectDetails(
               directoryPath: directory.path,
               projects: projects,
@@ -839,24 +871,88 @@ class _ScanDirectoryCard extends StatelessWidget {
               overrideProjectCount: overrideProjectCount,
             ),
           ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: () => onToggle(!directory.enabled),
-                icon: Icon(
-                  directory.enabled
-                      ? Icons.remove_circle_outline_rounded
-                      : Icons.add_circle_outline_rounded,
-                  size: 18,
-                ),
-                label: Text(directory.enabled ? '暂停扫描' : '启用扫描'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => onToggle(!directory.enabled),
+              icon: Icon(
+                directory.enabled
+                    ? Icons.pause_circle_outline_rounded
+                    : Icons.play_circle_outline_rounded,
+                size: 18,
               ),
-              const Spacer(),
-              _DangerIconButton(tooltip: '删除扫描目录', onPressed: onRemove),
-            ],
+              label: Text(directory.enabled ? '暂停扫描' : '启用扫描'),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScanFact extends StatelessWidget {
+  const _ScanFact({
+    required this.icon,
+    required this.label,
+    required this.level,
+  });
+
+  final IconData icon;
+  final String label;
+  final HealthLevel level;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final color = switch (level) {
+      HealthLevel.healthy => colors.accent,
+      HealthLevel.info => colors.textMuted,
+      HealthLevel.warning => colors.warning,
+      HealthLevel.critical => colors.danger,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: level == HealthLevel.info ? colors.textMuted : color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DirectoryStatusDot extends StatelessWidget {
+  const _DirectoryStatusDot({required this.enabled});
+
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final color = enabled ? colors.accent : colors.textMuted;
+
+    return Tooltip(
+      message: enabled ? '扫描中' : '已暂停',
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
@@ -939,8 +1035,8 @@ class _DirectoryProjectDetails extends StatelessWidget {
         collapsedBackgroundColor: colors.panelRaised.withValues(alpha: 0.14),
         visualDensity: VisualDensity.compact,
         title: const Text(
-          '查看项目明细',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          '项目明细',
+          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
           overrideProjectCount > 0
@@ -960,130 +1056,6 @@ class _DirectoryProjectDetails extends StatelessWidget {
           }),
         ],
       ),
-    );
-  }
-}
-
-class _DirectorySummaryBanner extends StatelessWidget {
-  const _DirectorySummaryBanner({required this.summary});
-
-  final _DirectoryScanSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-    final color = summary.level == HealthLevel.warning
-        ? colors.warning
-        : summary.level == HealthLevel.healthy
-        ? colors.accent
-        : colors.textMuted;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(summary.icon, color: color, size: 18),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              summary.message,
-              style: TextStyle(
-                color: summary.level == HealthLevel.info
-                    ? colors.textMuted
-                    : colors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DirectoryScanSummary {
-  factory _DirectoryScanSummary({
-    required bool enabled,
-    required int projectCount,
-    required int overrideProjectCount,
-  }) {
-    if (!enabled) {
-      return const _DirectoryScanSummary._paused();
-    }
-
-    if (projectCount == 0) {
-      return const _DirectoryScanSummary._empty();
-    }
-
-    if (overrideProjectCount > 0) {
-      return _DirectoryScanSummary._warning(
-        '发现 $projectCount 个 mise 项目，其中 $overrideProjectCount 个存在版本覆盖。',
-      );
-    }
-
-    return _DirectoryScanSummary._healthy('发现 $projectCount 个 mise 项目，暂无版本覆盖。');
-  }
-
-  const _DirectoryScanSummary._paused()
-    : message = '已暂停扫描，保留上次扫描结果。',
-      icon = Icons.pause_circle_outline_rounded,
-      level = HealthLevel.info;
-
-  const _DirectoryScanSummary._empty()
-    : message = '未发现 mise 项目。',
-      icon = Icons.search_off_rounded,
-      level = HealthLevel.info;
-
-  const _DirectoryScanSummary._healthy(this.message)
-    : icon = Icons.check_circle_outline_rounded,
-      level = HealthLevel.healthy;
-
-  const _DirectoryScanSummary._warning(this.message)
-    : icon = Icons.warning_amber_rounded,
-      level = HealthLevel.warning;
-
-  final String message;
-  final IconData icon;
-  final HealthLevel level;
-}
-
-class _DirectoryStatusLabel extends StatelessWidget {
-  const _DirectoryStatusLabel({required this.enabled});
-
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-    final color = enabled ? colors.accent : colors.textMuted;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 7),
-        Text(
-          enabled ? '扫描中' : '已暂停',
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1171,28 +1143,16 @@ class _OverridesPanel extends StatelessWidget {
                     level: HealthLevel.warning,
                   ),
           ),
-          const SizedBox(height: 12),
-          if (directories.isEmpty)
-            const _OverridesEmptyState(message: '暂无项目覆盖全局版本')
-          else if (overrideRows.isEmpty)
+          const SizedBox(height: 14),
+          if (directories.isEmpty || overrideRows.isEmpty)
             _OverridesEmptyState(
-              message: projectCount > 0 ? '暂无项目覆盖全局版本' : '暂无项目覆盖全局版本',
+              message: '暂无项目覆盖全局版本',
+              detail: directories.isEmpty
+                  ? '先在左侧添加扫描目录，应用会自动查找其中的 mise 项目。'
+                  : '已扫描 $projectCount 个项目，项目声明的版本与全局版本一致。',
             )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                children: [
-                  const _OverridesTableHeader(),
-                  const SizedBox(height: 12),
-                  for (var index = 0; index < overrideRows.length; index++) ...[
-                    _OverridesTableRow(row: overrideRows[index]),
-                    if (index != overrideRows.length - 1)
-                      const SizedBox(height: 12),
-                  ],
-                ],
-              ),
-            ),
+            _OverridesTable(rows: overrideRows),
         ],
       ),
     );
@@ -1200,9 +1160,10 @@ class _OverridesPanel extends StatelessWidget {
 }
 
 class _OverridesEmptyState extends StatelessWidget {
-  const _OverridesEmptyState({required this.message});
+  const _OverridesEmptyState({required this.message, required this.detail});
 
   final String message;
+  final String detail;
 
   @override
   Widget build(BuildContext context) {
@@ -1210,144 +1171,42 @@ class _OverridesEmptyState extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.backgroundSoft.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border),
-      ),
-      child: Text(message, style: TextStyle(color: colors.textMuted)),
-    );
-  }
-}
-
-class _OverridesTableHeader extends StatelessWidget {
-  const _OverridesTableHeader();
-
-  static const double _tableContentWidth = 980;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: colors.backgroundSoft.withValues(alpha: 0.8),
+        color: colors.backgroundSoft.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
+        border: Border.all(color: colors.border.withValues(alpha: 0.7)),
       ),
-      child: const SizedBox(
-        width: _tableContentWidth,
-        child: Row(
-          children: [
-            _TableHeaderCell(label: '项目', width: 260),
-            _TableHeaderCell(label: '工具', width: 120),
-            _TableHeaderCell(label: '项目版本', width: 170),
-            _TableHeaderCell(label: '全局版本', width: 170),
-            _TableHeaderCell(label: '扫描目录', width: 260),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OverridesTableRow extends StatelessWidget {
-  const _OverridesTableRow({required this.row});
-
-  static const double _tableContentWidth = 980;
-
-  final _OverrideRowData row;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: colors.warning.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.25)),
-      ),
-      child: SizedBox(
-        width: _tableContentWidth,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ProjectCell(
-              width: 260,
-              title: row.projectName,
-              subtitle: row.projectPath,
-            ),
-            _ValueCell(width: 120, value: row.tool),
-            _ValueCell(width: 170, value: row.projectVersion, emphasized: true),
-            _ValueCell(width: 170, value: row.globalVersion),
-            _ProjectCell(
-              width: 260,
-              title: row.scanRootName,
-              subtitle: row.scanRootPath,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TableHeaderCell extends StatelessWidget {
-  const _TableHeaderCell({required this.label, required this.width});
-
-  final String label;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
-    return SizedBox(
-      width: width,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: colors.textMuted,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _ProjectCell extends StatelessWidget {
-  const _ProjectCell({
-    required this.width,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final double width;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-
-    return SizedBox(
-      width: width,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: colors.textMuted,
-              fontSize: 12,
-              height: 1.4,
+          Icon(
+            Icons.check_circle_outline_rounded,
+            size: 18,
+            color: colors.accent,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  detail,
+                  style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1356,14 +1215,228 @@ class _ProjectCell extends StatelessWidget {
   }
 }
 
-class _ValueCell extends StatelessWidget {
-  const _ValueCell({
-    required this.width,
-    required this.value,
-    this.emphasized = false,
+class _OverridesTable extends StatelessWidget {
+  const _OverridesTable({required this.rows});
+
+  final List<_OverrideRowData> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 面板不够宽时改用卡片式排布，避免出现横向滚动条。
+        final compact = constraints.maxWidth < 760;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: colors.panelRaised.withValues(alpha: 0.24),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+          ),
+          child: Column(
+            children: [
+              if (!compact) const _OverridesTableHeader(),
+              for (var index = 0; index < rows.length; index++) ...[
+                if (!compact && index == 0)
+                  Divider(
+                    height: 1,
+                    color: colors.border.withValues(alpha: 0.42),
+                  ),
+                if (compact)
+                  _OverrideCard(row: rows[index])
+                else
+                  _OverridesTableRow(row: rows[index]),
+                if (index != rows.length - 1)
+                  Divider(
+                    height: 1,
+                    color: colors.border.withValues(alpha: 0.3),
+                  ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OverridesTableHeader extends StatelessWidget {
+  const _OverridesTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+      decoration: BoxDecoration(
+        color: colors.backgroundSoft.withValues(alpha: 0.5),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: const _OverridesRowLayout(
+        project: _TableHeaderLabel('项目'),
+        tool: _TableHeaderLabel('工具'),
+        projectVersion: _TableHeaderLabel('项目版本'),
+        globalVersion: _TableHeaderLabel('全局版本'),
+        scanRoot: _TableHeaderLabel('扫描目录'),
+      ),
+    );
+  }
+}
+
+class _OverridesTableRow extends StatelessWidget {
+  const _OverridesTableRow({required this.row});
+
+  final _OverrideRowData row;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+      child: _OverridesRowLayout(
+        project: _ProjectCell(
+          title: row.projectName,
+          subtitle: row.projectPath,
+        ),
+        tool: _ValueCell(value: row.tool),
+        projectVersion: _ValueCell(value: row.projectVersion, emphasized: true),
+        globalVersion: _ValueCell(value: row.globalVersion),
+        scanRoot: _ProjectCell(
+          title: row.scanRootName,
+          subtitle: row.scanRootPath,
+        ),
+      ),
+    );
+  }
+}
+
+class _OverrideCard extends StatelessWidget {
+  const _OverrideCard({required this.row});
+
+  final _OverrideRowData row;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ProjectCell(title: row.projectName, subtitle: row.projectPath),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _OverridePill(
+                label: row.tool,
+                value: row.projectVersion,
+                emphasized: true,
+              ),
+              _OverridePill(label: '全局', value: row.globalVersion),
+              _OverridePill(label: '目录', value: row.scanRootName),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverridesRowLayout extends StatelessWidget {
+  const _OverridesRowLayout({
+    required this.project,
+    required this.tool,
+    required this.projectVersion,
+    required this.globalVersion,
+    required this.scanRoot,
   });
 
-  final double width;
+  final Widget project;
+  final Widget tool;
+  final Widget projectVersion;
+  final Widget globalVersion;
+  final Widget scanRoot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 30, child: project),
+        const SizedBox(width: 12),
+        Expanded(flex: 14, child: tool),
+        const SizedBox(width: 12),
+        Expanded(flex: 18, child: projectVersion),
+        const SizedBox(width: 12),
+        Expanded(flex: 18, child: globalVersion),
+        const SizedBox(width: 12),
+        Expanded(flex: 26, child: scanRoot),
+      ],
+    );
+  }
+}
+
+class _TableHeaderLabel extends StatelessWidget {
+  const _TableHeaderLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return Text(
+      label,
+      style: TextStyle(
+        color: colors.textMuted,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _ProjectCell extends StatelessWidget {
+  const _ProjectCell({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: colors.textMuted,
+            fontSize: 11.5,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ValueCell extends StatelessWidget {
+  const _ValueCell({required this.value, this.emphasized = false});
+
   final String value;
   final bool emphasized;
 
@@ -1371,13 +1444,52 @@ class _ValueCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
 
-    return SizedBox(
-      width: width,
+    return Text(
+      value,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: emphasized ? colors.warning : colors.textPrimary,
+        fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+        fontSize: 13,
+        fontFamily: kMonoFontFamily,
+        fontFamilyFallback: kMonoFontFallback,
+      ),
+    );
+  }
+}
+
+class _OverridePill extends StatelessWidget {
+  const _OverridePill({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final accent = emphasized ? colors.warning : colors.textMuted;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
+      ),
       child: Text(
-        value,
+        '$label $value',
         style: TextStyle(
           color: emphasized ? colors.warning : colors.textPrimary,
-          fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+          fontSize: 12,
+          fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
+          fontFamily: kMonoFontFamily,
+          fontFamilyFallback: kMonoFontFallback,
         ),
       ),
     );

@@ -13,6 +13,7 @@ import 'package:mise_gui/services/mise_action_service.dart';
 import 'package:mise_gui/services/mise_cli_service.dart';
 import 'package:mise_gui/services/mise_process_service.dart';
 import 'package:mise_gui/services/mise_query_service.dart';
+import 'package:mise_gui/shared/format/time_format.dart';
 import 'package:mise_gui/shared/ui/action_preview_dialog.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
@@ -214,6 +215,9 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
                 tools: allTools,
                 managedToolIds: _managedToolIds,
                 onToggle: _toggleManaged,
+                onSelectAll: () =>
+                    _setManagedTools(allTools.map((tool) => tool.id)),
+                onClearAll: () => _setManagedTools(const <String>[]),
               ),
               const SizedBox(height: 12),
               if (displayTools.isEmpty)
@@ -247,6 +251,18 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
       _managedToolIds.add(id);
     }
     setState(() {});
+  }
+
+  void _setManagedTools(Iterable<String> ids) {
+    setState(() {
+      _managedToolIds
+        ..clear()
+        ..addAll(ids);
+      if (_selectedToolId != null &&
+          !_managedToolIds.contains(_selectedToolId)) {
+        _selectedToolId = null;
+      }
+    });
   }
 
   void _selectTool(String id) {
@@ -471,12 +487,7 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
     );
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   String _appendLockfileCleanupDetail(String detail, String? cleanupDetail) {
     final value = cleanupDetail?.trim();
@@ -776,7 +787,8 @@ class _CurrentCommandView extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: colors.textPrimary,
-          fontFamily: 'monospace',
+          fontFamily: kMonoFontFamily,
+          fontFamilyFallback: kMonoFontFallback,
           fontSize: 12.5,
           height: 1.35,
         ),
@@ -822,7 +834,8 @@ class _ActionLogView extends StatelessWidget {
                   line,
                   style: TextStyle(
                     color: colors.textMuted,
-                    fontFamily: 'monospace',
+                    fontFamily: kMonoFontFamily,
+                    fontFamilyFallback: kMonoFontFallback,
                     fontSize: 12,
                     height: 1.42,
                   ),
@@ -944,71 +957,67 @@ class _InstallToolDialog extends ConsumerStatefulWidget {
 }
 
 class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
-  final TextEditingController _toolController = TextEditingController();
-  final TextEditingController _versionController = TextEditingController();
-  final FocusNode _versionFocusNode = FocusNode();
-  Timer? _lookupDebounce;
+  var _loadingTools = true;
+  var _toolsFailed = false;
+  List<_SelectOption> _toolOptions = const [];
+
   var _loadingVersions = false;
-  List<String> _versionSuggestions = const [];
-  String? _lookupMessage;
+  List<_SelectOption> _versionOptions = const [];
+  String? _versionMessage;
+
+  String? _selectedTool;
+  String? _selectedVersion;
   int _lookupToken = 0;
 
   @override
   void initState() {
     super.initState();
-    _toolController.addListener(_scheduleVersionLookup);
-    _versionFocusNode.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
+    unawaited(_loadRegistryTools());
+  }
+
+  Future<void> _loadRegistryTools() async {
+    setState(() {
+      _loadingTools = true;
+      _toolsFailed = false;
     });
-  }
 
-  @override
-  void dispose() {
-    _lookupDebounce?.cancel();
-    _toolController.removeListener(_scheduleVersionLookup);
-    _toolController.dispose();
-    _versionController.dispose();
-    _versionFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _scheduleVersionLookup() {
-    final tool = _toolController.text.trim();
-    final scheduledToken = ++_lookupToken;
-
-    _lookupDebounce?.cancel();
-    if (mounted) {
+    try {
+      final tools = await ref
+          .read(miseQueryServiceProvider)
+          .fetchRegistryTools();
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        _versionSuggestions = const [];
-        _lookupMessage = tool.isEmpty ? null : '正在读取远端版本...';
-        _loadingVersions = tool.isNotEmpty;
+        _loadingTools = false;
+        _toolsFailed = tools.isEmpty;
+        _toolOptions = [
+          for (final tool in tools)
+            _SelectOption(
+              value: tool.name,
+              description: tool.description,
+              keywords: tool.aliases,
+            ),
+        ];
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loadingTools = false;
+        _toolsFailed = true;
+        _toolOptions = const [];
       });
     }
-    _lookupDebounce = Timer(
-      const Duration(milliseconds: 350),
-      () => _loadRemoteVersions(scheduledToken),
-    );
   }
 
-  Future<void> _loadRemoteVersions(int token) async {
-    final tool = _toolController.text.trim();
-
-    if (tool.isEmpty) {
-      if (mounted && token == _lookupToken) {
-        setState(() {
-          _loadingVersions = false;
-          _versionSuggestions = const [];
-          _lookupMessage = null;
-        });
-      }
-      return;
-    }
-
+  Future<void> _loadRemoteVersions(String tool) async {
+    final token = ++_lookupToken;
     setState(() {
       _loadingVersions = true;
-      _lookupMessage = null;
+      _versionOptions = const [];
+      _versionMessage = null;
     });
 
     try {
@@ -1018,37 +1027,74 @@ class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
       if (!mounted || token != _lookupToken) {
         return;
       }
-      final selected = selectVersionSuggestions(versions);
+
+      final options = <_SelectOption>[
+        const _SelectOption(
+          value: 'latest',
+          description: '跟随官方最新稳定版',
+          keywords: ['最新', 'stable'],
+        ),
+        for (final version in selectVersionSuggestions(versions))
+          _SelectOption(
+            value: version,
+            description: '推荐：该大版本的最新发行版',
+            keywords: ['推荐'],
+          ),
+        for (final version in versions.reversed)
+          _SelectOption(
+            value: version.version,
+            description: version.rolling ? '滚动版本' : null,
+          ),
+      ];
+
+      final seen = <String>{};
+      final deduped = <_SelectOption>[];
+      for (final option in options) {
+        if (seen.add(option.value)) {
+          deduped.add(option);
+        }
+      }
 
       setState(() {
         _loadingVersions = false;
-        _versionSuggestions = selected;
-        _lookupMessage = selected.isEmpty ? '没有拉到可选版本，仍可手动输入。' : null;
+        _versionOptions = deduped;
+        _versionMessage = deduped.isEmpty ? '没有拉到可选版本，可直接输入版本号。' : null;
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted || token != _lookupToken) {
         return;
       }
       setState(() {
         _loadingVersions = false;
-        _versionSuggestions = const [];
-        _lookupMessage = '远端版本读取失败，仍可手动输入版本号。';
+        _versionOptions = const [];
+        _versionMessage = '远端版本读取失败，可直接输入版本号。';
       });
     }
+  }
+
+  void _handleToolChanged(String value) {
+    setState(() {
+      _selectedTool = value;
+      _selectedVersion = null;
+    });
+    unawaited(_loadRemoteVersions(value));
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
+    final tool = _selectedTool;
+    final version = _selectedVersion;
+    final canSubmit = tool != null && version != null;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 460,
+        width: 520,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -1065,47 +1111,41 @@ class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
             Text('安装新工具', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 10),
             Text(
-              '输入要安装的工具名和版本，随后会进入执行前预览与确认。',
+              '从 mise 注册表里选择工具和版本，随后进入执行前预览与确认。',
               style: TextStyle(color: colors.textMuted, height: 1.55),
             ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: _toolController,
-              decoration: const InputDecoration(
-                labelText: 'Tool',
-                hintText: '例如: node / python / go / php',
-              ),
+            const SizedBox(height: 20),
+            _SearchSelectField(
+              label: '工具',
+              hint: _loadingTools ? '正在读取 mise 注册表…' : '选择要安装的工具',
+              value: _selectedTool,
+              options: _toolOptions,
+              loading: _loadingTools,
+              allowCustomValue: true,
+              searchHint: '搜索工具名或别名',
+              emptyMessage: _toolsFailed
+                  ? '注册表暂时读取失败，可直接输入工具名。'
+                  : '没有匹配的工具，可直接输入工具名。',
+              onChanged: _handleToolChanged,
             ),
             const SizedBox(height: 14),
-            TextField(
-              controller: _versionController,
-              focusNode: _versionFocusNode,
-              decoration: const InputDecoration(
-                labelText: 'Version',
-                hintText: '例如: 20 或 20.19.0 / 3.12 或 3.12.9 / latest',
-              ),
+            _SearchSelectField(
+              label: '版本',
+              hint: _selectedTool == null ? '请先选择工具' : '选择要安装的版本',
+              value: _selectedVersion,
+              options: _versionOptions,
+              loading: _loadingVersions,
+              enabled: _selectedTool != null,
+              allowCustomValue: true,
+              searchHint: '搜索版本号',
+              emptyMessage: _versionMessage ?? '没有匹配的版本，可直接输入版本号。',
+              onChanged: (value) => setState(() => _selectedVersion = value),
             ),
-            if (_versionFocusNode.hasFocus &&
-                (_loadingVersions ||
-                    _versionSuggestions.isNotEmpty ||
-                    _lookupMessage != null)) ...[
-              const SizedBox(height: 10),
-              _VersionSuggestionList(
-                loading: _loadingVersions,
-                versions: _versionSuggestions,
-                message: _lookupMessage,
-                selectedVersion: _versionController.text.trim(),
-                onSelected: (version) {
-                  _versionController.text = version;
-                  _versionController.selection = TextSelection.collapsed(
-                    offset: version.length,
-                  );
-                  _versionFocusNode.unfocus();
-                  setState(() {});
-                },
-              ),
+            if (tool != null && version != null) ...[
+              const SizedBox(height: 16),
+              _InstallCommandPreview(tool: tool, version: version),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Text(
               '安装后会直接写成全局默认版本。',
               style: TextStyle(
@@ -1124,7 +1164,7 @@ class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
                 ),
                 const SizedBox(width: 12),
                 FilledButton.icon(
-                  onPressed: _submit,
+                  onPressed: canSubmit ? _submit : null,
                   icon: const Icon(Icons.arrow_forward_rounded),
                   label: const Text('继续预览'),
                 ),
@@ -1137,12 +1177,12 @@ class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
   }
 
   void _submit() {
-    final tool = _toolController.text.trim();
-    final version = _versionController.text.trim();
-    if (tool.isEmpty || version.isEmpty) {
+    final tool = _selectedTool;
+    final version = _selectedVersion;
+    if (tool == null || version == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请先填写工具名和版本号。')));
+      ).showSnackBar(const SnackBar(content: Text('请先选择工具和版本。')));
       return;
     }
 
@@ -1152,20 +1192,11 @@ class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
   }
 }
 
-class _VersionSuggestionList extends StatelessWidget {
-  const _VersionSuggestionList({
-    required this.loading,
-    required this.versions,
-    required this.message,
-    required this.selectedVersion,
-    required this.onSelected,
-  });
+class _InstallCommandPreview extends StatelessWidget {
+  const _InstallCommandPreview({required this.tool, required this.version});
 
-  final bool loading;
-  final List<String> versions;
-  final String? message;
-  final String selectedVersion;
-  final ValueChanged<String> onSelected;
+  final String tool;
+  final String version;
 
   @override
   Widget build(BuildContext context) {
@@ -1173,117 +1204,396 @@ class _VersionSuggestionList extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.panelRaised.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(16),
+        color: colors.backgroundSoft.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: colors.border),
       ),
-      child: loading
-          ? const Padding(
-              padding: EdgeInsets.all(8),
-              child: LinearProgressIndicator(minHeight: 3),
-            )
-          : versions.isNotEmpty
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
-                  child: Text(
-                    '远端可选版本（各大版本最新发行版）',
-                    style: TextStyle(
-                      color: colors.textMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                for (var index = 0; index < versions.length; index++)
-                  _VersionSuggestionRow(
-                    version: versions[index],
-                    selected: versions[index] == selectedVersion,
-                    isFirst: index == 0,
-                    onTap: () => onSelected(versions[index]),
-                  ),
-              ],
-            )
-          : Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(
-                message ?? '没有拉到可选版本，仍可手动输入。',
-                style: TextStyle(color: colors.textMuted, height: 1.45),
-              ),
-            ),
+      child: Text(
+        'mise install $tool@$version\nmise use --global $tool@$version',
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontFamily: kMonoFontFamily,
+          fontFamilyFallback: kMonoFontFallback,
+          fontSize: 12.5,
+          height: 1.5,
+        ),
+      ),
     );
   }
 }
 
-class _VersionSuggestionRow extends StatelessWidget {
-  const _VersionSuggestionRow({
-    required this.version,
-    required this.selected,
-    required this.isFirst,
-    required this.onTap,
+class _SelectOption {
+  const _SelectOption({
+    required this.value,
+    this.description,
+    this.keywords = const <String>[],
   });
 
-  final String version;
+  final String value;
+  final String? description;
+  final List<String> keywords;
+
+  bool matches(String query) {
+    if (query.isEmpty) {
+      return true;
+    }
+    final normalized = query.toLowerCase();
+    if (value.toLowerCase().contains(normalized)) {
+      return true;
+    }
+    final description = this.description;
+    if (description != null && description.toLowerCase().contains(normalized)) {
+      return true;
+    }
+    for (final keyword in keywords) {
+      if (keyword.toLowerCase().contains(normalized)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+/// 可搜索的下拉选择框：点击展开，菜单里可以输入关键字筛选，也可以直接使用自定义值。
+class _SearchSelectField extends StatefulWidget {
+  const _SearchSelectField({
+    required this.label,
+    required this.hint,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.loading = false,
+    this.enabled = true,
+    this.allowCustomValue = false,
+    this.searchHint = '输入关键字筛选',
+    this.emptyMessage = '没有可选项',
+  });
+
+  final String label;
+  final String hint;
+  final String? value;
+  final List<_SelectOption> options;
+  final ValueChanged<String> onChanged;
+  final bool loading;
+  final bool enabled;
+  final bool allowCustomValue;
+  final String searchHint;
+  final String emptyMessage;
+
+  @override
+  State<_SearchSelectField> createState() => _SearchSelectFieldState();
+}
+
+class _SearchSelectFieldState extends State<_SearchSelectField> {
+  /// 一次性渲染上限：注册表 / 版本列表可能有上千条，靠搜索收敛后再展示。
+  static const _maxVisibleOptions = 200;
+
+  final MenuController _menuController = MenuController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  var _query = '';
+  var _menuOpen = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  List<_SelectOption> get _filteredOptions => widget.options
+      .where((option) => option.matches(_query.trim()))
+      .toList(growable: false);
+
+  void _handleSelect(String value) {
+    widget.onChanged(value);
+    _searchController.clear();
+    _menuController.close();
+    setState(() => _query = '');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final selected = widget.value;
+    final hasValue = selected != null && selected.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: TextStyle(
+            color: colors.textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        MenuAnchor(
+          controller: _menuController,
+          onOpen: () {
+            setState(() => _menuOpen = true);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _searchFocusNode.canRequestFocus) {
+                _searchFocusNode.requestFocus();
+              }
+            });
+          },
+          onClose: () {
+            _searchController.clear();
+            if (mounted) {
+              setState(() {
+                _query = '';
+                _menuOpen = false;
+              });
+            }
+          },
+          menuChildren: [_buildMenu(context)],
+          builder: (context, controller, child) {
+            return InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: !widget.enabled
+                  ? null
+                  : () => controller.isOpen
+                        ? controller.close()
+                        : controller.open(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 13,
+                ),
+                decoration: BoxDecoration(
+                  color: widget.enabled
+                      ? colors.panelMuted
+                      : colors.panelMuted.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _menuOpen ? colors.accent : colors.border,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        hasValue ? selected : widget.hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: hasValue
+                              ? colors.textPrimary
+                              : colors.textMuted,
+                          fontWeight: hasValue
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    if (widget.loading)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        _menuOpen
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 20,
+                        color: colors.textMuted,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMenu(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+    final query = _query.trim();
+    final matched = _filteredOptions;
+    final visible = matched.take(_maxVisibleOptions).toList(growable: false);
+    final showCustomValue =
+        widget.allowCustomValue &&
+        query.isNotEmpty &&
+        !widget.options.any(
+          (option) => option.value.toLowerCase() == query.toLowerCase(),
+        );
+    final hiddenCount = matched.length - visible.length;
+
+    return Container(
+      width: 340,
+      constraints: const BoxConstraints(maxHeight: 400),
+      decoration: BoxDecoration(
+        color: colors.panelRaised,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.borderStrong),
+        boxShadow: [
+          BoxShadow(
+            color: colors.backgroundDeep.withValues(alpha: 0.28),
+            blurRadius: 26,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: widget.searchHint,
+                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          Flexible(
+            child: visible.isEmpty && !showCustomValue
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      widget.emptyMessage,
+                      style: TextStyle(color: colors.textMuted, height: 1.5),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+                    itemCount: visible.length + (showCustomValue ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (showCustomValue && index == 0) {
+                        return _SelectMenuItem(
+                          label: query,
+                          description: '直接使用这个值',
+                          customValue: true,
+                          onTap: () => _handleSelect(query),
+                        );
+                      }
+                      final option = visible[index - (showCustomValue ? 1 : 0)];
+                      return _SelectMenuItem(
+                        label: option.value,
+                        description: option.description,
+                        selected: option.value == widget.value,
+                        onTap: () => _handleSelect(option.value),
+                      );
+                    },
+                  ),
+          ),
+          if (hiddenCount > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+              child: Text(
+                '还有 $hiddenCount 项未显示，继续输入可缩小范围。',
+                style: TextStyle(
+                  color: colors.textMuted,
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectMenuItem extends StatelessWidget {
+  const _SelectMenuItem({
+    required this.label,
+    required this.onTap,
+    this.description,
+    this.selected = false,
+    this.customValue = false,
+  });
+
+  final String label;
+  final String? description;
   final bool selected;
-  final bool isFirst;
+  final bool customValue;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
+    final description = this.description;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: selected
-            ? colors.info.withValues(alpha: 0.12)
-            : colors.panel.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(14),
+            ? colors.accent.withValues(alpha: 0.16)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
-          onTapDown: (_) => onTap(),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           hoverColor: colors.hover,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (customValue)
+                  Icon(Icons.edit_rounded, size: 16, color: colors.textMuted)
+                else
+                  Icon(
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    size: 16,
+                    color: selected ? colors.accent : colors.textMuted,
+                  ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    version,
-                    style: const TextStyle(
-                      fontFamily: 'FiraCode',
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          fontFamily: kMonoFontFamily,
+                          fontFamilyFallback: kMonoFontFallback,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (description != null &&
+                          description.trim().isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textMuted,
+                            fontSize: 11.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (isFirst)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colors.accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '最新',
-                      style: TextStyle(
-                        color: colors.accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                if (selected) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.check_rounded, size: 18, color: colors.info),
-                ],
               ],
             ),
           ),
@@ -1298,11 +1608,15 @@ class _ToolManagerPicker extends StatelessWidget {
     required this.tools,
     required this.managedToolIds,
     required this.onToggle,
+    required this.onSelectAll,
+    required this.onClearAll,
   });
 
   final List<ToolRecord> tools;
   final Set<String> managedToolIds;
   final ValueChanged<String> onToggle;
+  final VoidCallback onSelectAll;
+  final VoidCallback onClearAll;
 
   @override
   Widget build(BuildContext context) {
@@ -1310,6 +1624,7 @@ class _ToolManagerPicker extends StatelessWidget {
     final selectedCount = tools
         .where((tool) => managedToolIds.contains(tool.id))
         .length;
+    final allSelected = tools.isNotEmpty && selectedCount == tools.length;
 
     return AppPanel(
       radius: 10,
@@ -1320,9 +1635,27 @@ class _ToolManagerPicker extends StatelessWidget {
           PanelHeader(
             title: '选择要管理的工具',
             description: '只勾选需要在这里查看和管理的工具，其它工具将被隐藏。',
-            trailing: Text(
-              '已选 $selectedCount / ${tools.length}',
-              style: TextStyle(color: colors.textMuted, fontSize: 12),
+            trailing: Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '已选 $selectedCount / ${tools.length}',
+                  style: TextStyle(
+                    color: colors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextButton(
+                  onPressed: allSelected ? null : onSelectAll,
+                  child: const Text('全选'),
+                ),
+                TextButton(
+                  onPressed: selectedCount == 0 ? null : onClearAll,
+                  child: const Text('清空'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 10),
@@ -1330,16 +1663,55 @@ class _ToolManagerPicker extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final tool in tools)
-                FilterChip(
-                  label: Text(tool.name),
+              for (final tool in tools) ...[
+                _ManagedToolChip(
+                  name: tool.name,
                   selected: managedToolIds.contains(tool.id),
-                  onSelected: (_) => onToggle(tool.id),
+                  onToggle: () => onToggle(tool.id),
                 ),
+              ],
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ManagedToolChip extends StatelessWidget {
+  const _ManagedToolChip({
+    required this.name,
+    required this.selected,
+    required this.onToggle,
+  });
+
+  final String name;
+  final bool selected;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return FilterChip(
+      label: Text(name),
+      selected: selected,
+      onSelected: (_) => onToggle(),
+      showCheckmark: true,
+      selectedColor: colors.accent.withValues(alpha: 0.16),
+      checkmarkColor: colors.accent,
+      backgroundColor: colors.panelRaised.withValues(alpha: 0.55),
+      side: BorderSide(
+        color: selected
+            ? colors.accent.withValues(alpha: 0.55)
+            : colors.border.withValues(alpha: 0.7),
+      ),
+      labelStyle: TextStyle(
+        color: selected ? colors.accent : colors.textPrimary,
+        fontSize: 13,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
     );
   }
 }
@@ -1364,10 +1736,15 @@ class _NoManagedTools extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.warning.withValues(alpha: 0.24)),
+                border: Border.all(
+                  color: colors.warning.withValues(alpha: 0.24),
+                ),
               ),
-              child: Icon(Icons.filter_alt_off_rounded,
-                  color: colors.warning, size: 20),
+              child: Icon(
+                Icons.filter_alt_off_rounded,
+                color: colors.warning,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1426,10 +1803,7 @@ class _ToolList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PanelHeader(
-            title: '已安装',
-            description: '按工具查看当前版本，并按需加载可升级信息。',
-          ),
+          const PanelHeader(title: '已安装', description: '按工具查看当前版本，并按需加载可升级信息。'),
           const SizedBox(height: 12),
           for (final tool in tools)
             KeyedSubtree(
@@ -1797,7 +2171,8 @@ class _ToolHeroPanel extends StatelessWidget {
                     SelectableText(
                       '当前 ${tool.activeVersion}',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontFamily: 'FiraCode',
+                        fontFamily: kMonoFontFamily,
+                        fontFamilyFallback: kMonoFontFallback,
                         fontSize: 16,
                       ),
                     ),
@@ -1807,7 +2182,8 @@ class _ToolHeroPanel extends StatelessWidget {
                       style: TextStyle(
                         color: colors.textMuted,
                         fontSize: 13,
-                        fontFamily: 'FiraCode',
+                        fontFamily: kMonoFontFamily,
+                        fontFamilyFallback: kMonoFontFallback,
                       ),
                     ),
                   ],
@@ -2042,7 +2418,8 @@ class _VersionCard extends StatelessWidget {
               version.version,
               style: TextStyle(
                 color: colors.textPrimary,
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -2383,7 +2760,8 @@ class _MiniFact extends StatelessWidget {
         style: TextStyle(
           color: colors.textMuted,
           fontSize: 12,
-          fontFamily: 'FiraCode',
+          fontFamily: kMonoFontFamily,
+          fontFamilyFallback: kMonoFontFallback,
         ),
       ),
     );

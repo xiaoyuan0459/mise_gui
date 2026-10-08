@@ -41,6 +41,13 @@ class _FakeMiseQueryService implements MiseQueryService {
   }
 
   @override
+  Future<List<MiseRegistryToolRef>> fetchRegistryTools({
+    String? workingDirectory,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<MiseRemoteToolVersionRef>> fetchRemoteVersions(
     String tool, {
     String? workingDirectory,

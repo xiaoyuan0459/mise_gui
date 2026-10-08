@@ -10,6 +10,7 @@ import 'package:mise_gui/features/config/application/config_provider.dart';
 import 'package:mise_gui/features/projects/application/projects_provider.dart';
 import 'package:mise_gui/models/app_models.dart';
 import 'package:mise_gui/services/config_service.dart';
+import 'package:mise_gui/shared/format/time_format.dart';
 import 'package:mise_gui/shared/ui/app_page_scaffold.dart';
 import 'package:mise_gui/shared/ui/app_panel.dart';
 import 'package:mise_gui/shared/ui/async_state_view.dart';
@@ -473,9 +474,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
       ref.invalidate(configProvider);
       final messenger = ScaffoldMessenger.of(context);
       messenger.removeCurrentSnackBar();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('默认工具与版本已写回全局配置。')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('默认工具与版本已写回全局配置。')));
     }
   }
 }
@@ -533,7 +532,8 @@ class _ManagedToolsPanel extends StatelessWidget {
                     child: Text(
                       '${entry.tool} @ ${entry.declaredVersion}',
                       style: const TextStyle(
-                        fontFamily: 'FiraCode',
+                        fontFamily: kMonoFontFamily,
+                        fontFamilyFallback: kMonoFontFallback,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -567,7 +567,9 @@ class _ManagedToolsEditorDialogState
   @override
   void initState() {
     super.initState();
-    _drafts = [for (final entry in widget.data.entries) _ManagedToolDraft(entry)];
+    _drafts = [
+      for (final entry in widget.data.entries) _ManagedToolDraft(entry),
+    ];
   }
 
   @override
@@ -609,7 +611,8 @@ class _ManagedToolsEditorDialogState
               widget.data.document.path,
               style: TextStyle(
                 color: colors.textMuted,
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: 12,
               ),
             ),
@@ -653,11 +656,7 @@ class _ManagedToolsEditorDialogState
                 if (_preview == null)
                   FilledButton.icon(
                     onPressed: _loadingPreview ? null : _generatePreview,
-                    icon: Icon(
-                      _loadingPreview
-                          ? null
-                          : Icons.preview_rounded,
-                    ),
+                    icon: Icon(_loadingPreview ? null : Icons.preview_rounded),
                     label: Text(_loadingPreview ? '预览中...' : '预览变更'),
                   ),
                 if (_preview != null)
@@ -680,10 +679,7 @@ class _ManagedToolsEditorDialogState
           Divider(height: 1, color: colors.border.withValues(alpha: 0.9)),
       itemBuilder: (context, index) {
         final draft = _drafts[index];
-        return _ManagedToolRow(
-          draft: draft,
-          onChanged: () => setState(() {}),
-        );
+        return _ManagedToolRow(draft: draft, onChanged: () => setState(() {}));
       },
     );
   }
@@ -712,7 +708,10 @@ class _ManagedToolsEditorDialogState
     try {
       final preview = await ref
           .read(configRepositoryProvider)
-          .previewSave(document: widget.data.document, nextContent: nextContent);
+          .previewSave(
+            document: widget.data.document,
+            nextContent: nextContent,
+          );
       if (!mounted) {
         return;
       }
@@ -769,12 +768,7 @@ class _ManagedToolsEditorDialogState
     }
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   void _showFeedback(String message) {
     if (!mounted) {
@@ -835,7 +829,8 @@ class _ManagedToolRow extends StatelessWidget {
                 Text(
                   entry.tool,
                   style: const TextStyle(
-                    fontFamily: 'FiraCode',
+                    fontFamily: kMonoFontFamily,
+                    fontFamilyFallback: kMonoFontFallback,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -881,7 +876,10 @@ class _ManagedToolRow extends StatelessWidget {
                             child: Text(
                               version,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontFamily: 'FiraCode'),
+                              style: const TextStyle(
+                                fontFamily: kMonoFontFamily,
+                                fontFamilyFallback: kMonoFontFallback,
+                              ),
                             ),
                           ),
                       ],
@@ -1220,7 +1218,8 @@ class _DocumentPathLine extends StatelessWidget {
           child: SelectableText(
             document.path,
             style: const TextStyle(
-              fontFamily: 'FiraCode',
+              fontFamily: kMonoFontFamily,
+              fontFamilyFallback: kMonoFontFallback,
               fontSize: 12,
               height: 1.5,
             ),
@@ -1433,10 +1432,7 @@ class _ProxySettingTile extends StatelessWidget {
 }
 
 class _ConfigSection extends StatelessWidget {
-  const _ConfigSection({
-    required this.section,
-    this.onEditJavaAliases,
-  });
+  const _ConfigSection({required this.section, this.onEditJavaAliases});
 
   final ConfigSectionData section;
   final VoidCallback? onEditJavaAliases;
@@ -1662,7 +1658,8 @@ class _ToolDeclarationCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontFamily: 'FiraCode',
+                      fontFamily: kMonoFontFamily,
+                      fontFamilyFallback: kMonoFontFallback,
                       fontSize: 14,
                     ),
                   ),
@@ -1685,7 +1682,8 @@ class _ToolDeclarationCard extends StatelessWidget {
               overflow: complex ? TextOverflow.ellipsis : TextOverflow.fade,
               style: TextStyle(
                 color: complex ? colors.textMuted : colors.textPrimary,
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: complex ? 11 : 18,
                 fontWeight: complex ? FontWeight.w500 : FontWeight.w800,
                 height: complex ? 1.4 : 1.15,
@@ -1778,11 +1776,7 @@ class _RuntimeSectionSummary extends StatelessWidget {
 
   final ConfigSectionData section;
 
-  static const Set<String> _excludedLabels = {
-    'HTTP 超时',
-    'HTTP 重试',
-    '代理环境变量',
-  };
+  static const Set<String> _excludedLabels = {'HTTP 超时', 'HTTP 重试', '代理环境变量'};
 
   @override
   Widget build(BuildContext context) {
@@ -1902,7 +1896,8 @@ class _ProxySettingsEditorDialogState
               widget.data.document.path,
               style: TextStyle(
                 color: colors.textMuted,
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: 12,
               ),
             ),
@@ -2076,12 +2071,7 @@ class _ProxySettingsEditorDialogState
     return false;
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   void _showFeedback(String message) {
     if (!mounted) {
@@ -2258,7 +2248,8 @@ class _RuntimeSettingsEditorDialogState
               widget.data.document.path,
               style: TextStyle(
                 color: colors.textMuted,
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: 12,
               ),
             ),
@@ -2474,12 +2465,7 @@ class _RuntimeSettingsEditorDialogState
     return false;
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   void _showFeedback(String message) {
     if (!mounted) {
@@ -2691,7 +2677,8 @@ class _ConfigDocumentEditorDialogState
               child: SelectableText(
                 widget.document.path,
                 style: const TextStyle(
-                  fontFamily: 'FiraCode',
+                  fontFamily: kMonoFontFamily,
+                  fontFamilyFallback: kMonoFontFallback,
                   fontSize: 12,
                   height: 1.45,
                 ),
@@ -2761,7 +2748,8 @@ class _ConfigDocumentEditorDialogState
         autocorrect: false,
         enableSuggestions: false,
         style: const TextStyle(
-          fontFamily: 'FiraCode',
+          fontFamily: kMonoFontFamily,
+          fontFamilyFallback: kMonoFontFallback,
           fontSize: 13,
           height: 1.6,
         ),
@@ -2874,12 +2862,7 @@ class _ConfigDocumentEditorDialogState
     }
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   void _showFeedback(String message) {
     if (!mounted) {
@@ -2991,7 +2974,8 @@ class _JavaAliasesEditorDialogState
               widget.document.path,
               style: TextStyle(
                 color: colors.textMuted,
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: 12,
               ),
             ),
@@ -3117,7 +3101,8 @@ class _JavaAliasesEditorDialogState
                 autocorrect: false,
                 enableSuggestions: false,
                 style: const TextStyle(
-                  fontFamily: 'FiraCode',
+                  fontFamily: kMonoFontFamily,
+                  fontFamilyFallback: kMonoFontFallback,
                   fontSize: 13,
                   height: 1.55,
                 ),
@@ -3246,12 +3231,7 @@ class _JavaAliasesEditorDialogState
         _normalizeEditorContent(widget.document.content);
   }
 
-  String _formatNow() {
-    final now = DateTime.now();
-    final hours = now.hour.toString().padLeft(2, '0');
-    final minutes = now.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
+  String _formatNow() => formatHistoryTimestamp();
 
   void _showFeedback(String message) {
     if (!mounted) {
@@ -3308,10 +3288,7 @@ class _EmptySectionHint extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 6),
                   Text(
                     message,
@@ -3357,7 +3334,8 @@ class _CodePanel extends StatelessWidget {
         child: SelectableText(
           content,
           style: const TextStyle(
-            fontFamily: 'FiraCode',
+            fontFamily: kMonoFontFamily,
+            fontFamilyFallback: kMonoFontFallback,
             fontSize: 13,
             height: 1.6,
           ),
@@ -3371,7 +3349,8 @@ class _CodePanel extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontFamily: 'FiraCode',
+            fontFamily: kMonoFontFamily,
+            fontFamilyFallback: kMonoFontFallback,
             fontSize: 17,
             fontWeight: FontWeight.w700,
           ),

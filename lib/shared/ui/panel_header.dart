@@ -30,7 +30,7 @@ class PanelHeader extends StatelessWidget {
     final colors = AppTheme.colorsOf(context);
     final accentColor = accent ?? colors.info;
 
-    return Row(
+    final titleBlock = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (icon != null) ...[
@@ -52,6 +52,8 @@ class PanelHeader extends StatelessWidget {
             children: [
               Text(
                 title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style:
                     titleStyle ??
                     Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -74,9 +76,44 @@ class PanelHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (action != null) ...[const SizedBox(width: 16), action!],
-        if (trailing != null) ...[const SizedBox(width: 8), trailing!],
       ],
+    );
+
+    final extras = <Widget>[
+      if (action != null) action!,
+      if (trailing != null) trailing!,
+    ];
+    if (extras.isEmpty) {
+      return titleBlock;
+    }
+
+    final actionBlock = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: extras,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 面板偏窄时把操作区折到标题下方，否则标题会被按钮挤成一条细缝。
+        final compact = constraints.maxWidth < 560;
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [titleBlock, const SizedBox(height: 12), actionBlock],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 16),
+            actionBlock,
+          ],
+        );
+      },
     );
   }
 }

@@ -241,7 +241,8 @@ class _Sidebar extends ConsumerWidget {
                                     const Text(
                                       'Mise GUI',
                                       style: TextStyle(
-                                        fontFamily: 'FiraCode',
+                                        fontFamily: kMonoFontFamily,
+                                        fontFamilyFallback: kMonoFontFallback,
                                         fontSize: 20,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -369,7 +370,8 @@ class _SidebarFooter extends StatelessWidget {
     final style = TextStyle(
       color: colors.textMuted.withValues(alpha: 0.82),
       fontSize: 11,
-      fontFamily: 'FiraCode',
+      fontFamily: kMonoFontFamily,
+      fontFamilyFallback: kMonoFontFallback,
       fontWeight: FontWeight.w600,
     );
 
@@ -477,9 +479,8 @@ class _SidebarConfigChildren extends ConsumerWidget {
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 onTap: () {
-                  ref
-                      .read(selectedConfigSectionProvider.notifier)
-                      .state = section;
+                  ref.read(selectedConfigSectionProvider.notifier).state =
+                      section;
                   onSelect(AppDestination.config.index);
                 },
                 borderRadius: BorderRadius.circular(10),
@@ -1182,7 +1183,8 @@ class _InstallCommandCard extends StatelessWidget {
             child: SelectableText(
               installCommand,
               style: TextStyle(
-                fontFamily: 'FiraCode',
+                fontFamily: kMonoFontFamily,
+                fontFamilyFallback: kMonoFontFallback,
                 fontSize: 14,
                 height: 1.55,
                 color: colors.textPrimary,
@@ -1375,7 +1377,8 @@ class _StepRow extends StatelessWidget {
             index,
             style: TextStyle(
               color: colors.accent,
-              fontFamily: 'FiraCode',
+              fontFamily: kMonoFontFamily,
+              fontFamilyFallback: kMonoFontFallback,
               fontWeight: FontWeight.w700,
             ),
           ),

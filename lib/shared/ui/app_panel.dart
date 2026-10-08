@@ -28,7 +28,8 @@ class AppPanel extends StatelessWidget {
       curve: Curves.easeOutCubic,
       padding: padding,
       decoration: BoxDecoration(
-        color: colors.panel.withValues(alpha: backgroundAlpha ?? 0.84),
+        // 面板底色略实一些，文字落在稳定的背景上，观感更清晰不发虚。
+        color: colors.panel.withValues(alpha: backgroundAlpha ?? 0.9),
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
           color: colors.border.withValues(alpha: borderAlpha ?? 0.58),

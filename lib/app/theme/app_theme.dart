@@ -1,5 +1,35 @@
 import 'package:flutter/material.dart';
 
+/// 界面正文使用的字体栈。
+///
+/// 应用不内置字体文件，因此这里只声明系统里真实存在的字体：Windows 走
+/// Segoe UI（中文自动落到微软雅黑），macOS / Linux 各有对应字体。
+/// 声明不存在的字体（例如 IBM Plex Sans）会让 Skia 走不可控的兜底，
+/// 出现字形忽粗忽细、"发虚"的观感。
+const List<String> kUiFontFamilies = <String>[
+  'Segoe UI Variable Text',
+  'Segoe UI',
+  'Microsoft YaHei UI',
+  'Microsoft YaHei',
+  'PingFang SC',
+  'Hiragino Sans GB',
+  'Noto Sans CJK SC',
+  'Noto Sans SC',
+  'Helvetica Neue',
+  'Arial',
+];
+
+/// 代码、版本号、路径等文本使用的等宽字体。
+const String kMonoFontFamily = 'Cascadia Mono';
+const List<String> kMonoFontFallback = <String>[
+  'Consolas',
+  'SF Mono',
+  'Menlo',
+  'DejaVu Sans Mono',
+  'Liberation Mono',
+  'Courier New',
+];
+
 @immutable
 class AppPalette {
   const AppPalette({
@@ -56,7 +86,7 @@ class AppTheme {
     warning: Color(0xFFF59E0B),
     danger: Color(0xFFEF4444),
     textPrimary: Color(0xFFF8FAFC),
-    textMuted: Color(0xFF94A3B8),
+    textMuted: Color(0xFFA5B4CA),
     hover: Color(0x1F38BDF8),
     heroGradient: LinearGradient(
       colors: [Color(0xFF1A2640), Color(0xFF0E1625), Color(0xFF123527)],
@@ -136,42 +166,52 @@ class AppTheme {
     );
 
     final textTheme = base.textTheme.copyWith(
-      displaySmall: _monoStyle(
+      displaySmall: _uiStyle(
         fontSize: 36,
         fontWeight: FontWeight.w700,
         color: palette.textPrimary,
+        height: 1.1,
       ),
-      headlineLarge: _monoStyle(
+      headlineLarge: _uiStyle(
         fontSize: 28,
         fontWeight: FontWeight.w700,
         color: palette.textPrimary,
+        height: 1.2,
       ),
-      headlineMedium: _monoStyle(
+      headlineMedium: _uiStyle(
         fontSize: 22,
         fontWeight: FontWeight.w700,
         color: palette.textPrimary,
+        height: 1.25,
       ),
-      titleLarge: _monoStyle(
+      titleLarge: _uiStyle(
         fontSize: 18,
         fontWeight: FontWeight.w700,
         color: palette.textPrimary,
+        height: 1.3,
       ),
-      bodyLarge: _bodyStyle(
+      titleMedium: _uiStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: palette.textPrimary,
+        height: 1.3,
+      ),
+      bodyLarge: _uiStyle(
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: palette.textPrimary,
       ),
-      bodyMedium: _bodyStyle(
+      bodyMedium: _uiStyle(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: palette.textPrimary,
       ),
-      bodySmall: _bodyStyle(
+      bodySmall: _uiStyle(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: palette.textMuted,
       ),
-      labelLarge: _bodyStyle(
+      labelLarge: _uiStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: palette.textPrimary,
@@ -416,43 +456,18 @@ class AppTheme {
     );
   }
 
-  static TextStyle _bodyStyle({
+  static TextStyle _uiStyle({
     required double fontSize,
     required FontWeight fontWeight,
     required Color color,
+    double? height,
   }) {
     return TextStyle(
-      fontFamily: 'IBM Plex Sans',
-      fontFamilyFallback: const [
-        'Fira Sans',
-        'Inter',
-        'SF Pro Text',
-        'Segoe UI',
-        'Noto Sans',
-        'Arial',
-      ],
+      fontFamily: kUiFontFamilies.first,
+      fontFamilyFallback: kUiFontFamilies.sublist(1),
       fontSize: fontSize,
       fontWeight: fontWeight,
-      color: color,
-    );
-  }
-
-  static TextStyle _monoStyle({
-    required double fontSize,
-    required FontWeight fontWeight,
-    required Color color,
-  }) {
-    return TextStyle(
-      fontFamily: 'JetBrains Mono',
-      fontFamilyFallback: const [
-        'Fira Code',
-        'SF Mono',
-        'Consolas',
-        'Monaco',
-        'Menlo',
-      ],
-      fontSize: fontSize,
-      fontWeight: fontWeight,
+      height: height,
       color: color,
     );
   }
