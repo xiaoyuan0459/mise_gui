@@ -229,6 +229,7 @@ class _ConfigPageState extends ConsumerState<ConfigPage> {
         }
 
         return AppPageScaffold(
+          eyebrow: '04 / CONFIG · ${section.label}',
           title: section.label,
           description: section.description,
           child: Column(
@@ -589,7 +590,7 @@ class _ManagedToolsEditorDialogState
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -1874,7 +1875,7 @@ class _ProxySettingsEditorDialogState
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -2226,7 +2227,7 @@ class _RuntimeSettingsEditorDialogState
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -2624,7 +2625,7 @@ class _ConfigDocumentEditorDialogState
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -2671,7 +2672,7 @@ class _ConfigDocumentEditorDialogState
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: colors.backgroundSoft,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 border: Border.all(color: colors.border),
               ),
               child: SelectableText(
@@ -2737,7 +2738,7 @@ class _ConfigDocumentEditorDialogState
     return Container(
       decoration: BoxDecoration(
         color: colors.backgroundSoft,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: colors.border),
       ),
       child: TextField(
@@ -2952,7 +2953,7 @@ class _JavaAliasesEditorDialogState
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -3089,7 +3090,7 @@ class _JavaAliasesEditorDialogState
             child: Container(
               decoration: BoxDecoration(
                 color: colors.backgroundSoft,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 border: Border.all(color: colors.border),
               ),
               child: TextField(
@@ -3327,7 +3328,7 @@ class _CodePanel extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.backgroundSoft,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: colors.border),
       ),
       child: SingleChildScrollView(

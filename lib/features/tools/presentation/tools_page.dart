@@ -188,6 +188,7 @@ class _ToolsPageState extends ConsumerState<ToolsPage> {
             .toList(growable: false);
 
         return AppPageScaffold(
+          eyebrow: '02 / TOOLCHAINS',
           title: '工具版本',
           description: '勾选要管理的工具，管理列表只显示你选中的工具。',
           actions: [
@@ -691,7 +692,7 @@ class _ActionProgressDialog extends StatelessWidget {
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: colors.panel,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AppRadius.panel),
                 border: Border.all(color: colors.borderStrong),
                 boxShadow: [
                   BoxShadow(
@@ -1094,7 +1095,7 @@ class _InstallToolDialogState extends ConsumerState<_InstallToolDialog> {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -1711,7 +1712,9 @@ class _ManagedToolChip extends StatelessWidget {
         fontSize: 13,
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
     );
   }
 }
@@ -1982,10 +1985,10 @@ class _ToolListItem extends StatelessWidget {
       color: selected
           ? colors.info.withValues(alpha: 0.10)
           : colors.panelRaised.withValues(alpha: 0.84),
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(AppRadius.control),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         hoverColor: colors.hover,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -2151,7 +2154,7 @@ class _ToolHeroPanel extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.36),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: colors.border.withValues(alpha: 0.36)),
       ),
       child: Column(
@@ -2320,7 +2323,7 @@ class _VersionInventoryPanel extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.24),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: colors.border.withValues(alpha: 0.32)),
       ),
       child: Column(
@@ -2675,7 +2678,7 @@ class _PanelEmptyStateCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.panel),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -2753,7 +2756,7 @@ class _MiniFact extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colors.backgroundSoft,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
       ),
       child: Text(
         '$label: $value',

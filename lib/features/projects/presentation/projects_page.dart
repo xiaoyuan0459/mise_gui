@@ -370,6 +370,7 @@ class _ProjectsPageState extends ConsumerState<ProjectsPage> {
       value: coverageValue,
       builder: (snapshot) {
         return AppPageScaffold(
+          eyebrow: '03 / PROJECTS',
           title: '项目覆盖',
           description: '管理扫描目录，只显示覆盖了全局版本的项目和版本差异。',
           actions: [
@@ -915,7 +916,7 @@ class _ScanFact extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
       child: Row(
@@ -1479,7 +1480,7 @@ class _OverridePill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Text(

@@ -22,8 +22,8 @@ class CommandPreview extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: colors.backgroundSoft,
-              borderRadius: BorderRadius.circular(18),
+              color: colors.backgroundDeep.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               border: Border.all(color: colors.border),
             ),
             child: SelectableText(

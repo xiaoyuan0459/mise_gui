@@ -68,7 +68,7 @@ class _ActionPreviewDialog extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
           boxShadow: [
             BoxShadow(
@@ -274,7 +274,7 @@ class _CommandOnlyPreviewDialog extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(
             color: colors.borderStrong.withValues(alpha: 0.62),
           ),
@@ -392,7 +392,7 @@ class _InfoBlock extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -473,7 +473,7 @@ class _CodeCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.backgroundSoft,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: colors.border),
       ),
       child: Column(

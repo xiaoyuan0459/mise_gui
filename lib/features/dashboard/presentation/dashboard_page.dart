@@ -167,6 +167,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     return AsyncStateView(
       value: snapshot,
       builder: (data) => AppPageScaffold(
+        eyebrow: '01 / ENVIRONMENT',
         title: '环境总览',
         description: '',
         actions: [
@@ -566,9 +567,9 @@ class _MiseSelfUpdatePanelState extends ConsumerState<_MiseSelfUpdatePanel> {
 
     return AppPanel(
       padding: const EdgeInsets.all(20),
-      radius: 20,
-      backgroundAlpha: 0.88,
-      borderAlpha: 0.5,
+      radius: AppRadius.panel,
+      backgroundAlpha: 0.94,
+      borderAlpha: 0.7,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -696,7 +697,7 @@ class _MiseUpdateVersionRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: colors.panelMuted,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
               border: Border.all(color: colors.border),
             ),
             child: Text(
@@ -728,7 +729,7 @@ class _VersionChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: colors.panelMuted,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: colors.border),
       ),
       child: Row(
@@ -768,7 +769,7 @@ class _MiseSelfUpdateLog extends StatelessWidget {
         color: colors.backgroundDeep.withValues(
           alpha: Theme.of(context).brightness == Brightness.dark ? 0.42 : 0.06,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: colors.border),
       ),
       child: ListView.builder(
@@ -823,8 +824,8 @@ class _RecentHistoryPanel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
               color: colors.panel.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border.withValues(alpha: 0.44)),
+              borderRadius: BorderRadius.circular(AppRadius.panel),
+              border: Border.all(color: colors.border.withValues(alpha: 0.6)),
             ),
             child: Text(
               '当前还没有最近操作记录。',
@@ -864,7 +865,7 @@ class _DashboardMetricCard extends StatelessWidget {
       HealthLevel.critical => colors.danger,
     };
 
-    const cardRadius = 20.0;
+    const cardRadius = AppRadius.panel;
     final child = metric.label == '当前系统'
         ? _SystemMetricContent(metric: metric, accent: accent)
         : compact
@@ -884,8 +885,8 @@ class _DashboardMetricCard extends StatelessWidget {
           ? const EdgeInsets.fromLTRB(18, 18, 18, 16)
           : const EdgeInsets.all(22),
       radius: cardRadius,
-      backgroundAlpha: 0.86,
-      borderAlpha: 0.5,
+      backgroundAlpha: 0.94,
+      borderAlpha: 0.7,
       child: child,
     );
 
@@ -957,16 +958,17 @@ class _CompactMetricContent extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  border: Border.all(color: accent.withValues(alpha: 0.22)),
                 ),
                 child: Icon(
                   _iconForMetric(metric.label),
                   color: accent,
-                  size: 19,
+                  size: 17,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1146,13 +1148,14 @@ class _MetricHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 42,
-          height: 42,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(13),
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
           ),
-          child: Icon(icon, color: accent, size: 20),
+          child: Icon(icon, color: accent, size: 17),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1205,12 +1208,12 @@ class _SystemInfoTile extends StatelessWidget {
     final colors = AppTheme.colorsOf(context);
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 58),
+      constraints: const BoxConstraints(minHeight: 56),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: colors.panelMuted.withValues(alpha: 0.48),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.border.withValues(alpha: 0.44)),
+        color: colors.panelMuted.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1264,8 +1267,8 @@ class _SystemInfoChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: colors.info.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colors.info.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: colors.info.withValues(alpha: 0.26)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -150,7 +150,7 @@ class _AppUpdateDialog extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong.withValues(alpha: 0.7)),
           boxShadow: [
             BoxShadow(
@@ -196,7 +196,7 @@ class _AppUpdateDialog extends ConsumerWidget {
                         height: 54,
                         decoration: BoxDecoration(
                           color: colors.accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(AppRadius.chip),
                           border: Border.all(
                             color: colors.accent.withValues(alpha: 0.28),
                           ),
@@ -212,6 +212,15 @@ class _AppUpdateDialog extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text(
+                              'UPDATE AVAILABLE',
+                              style: AppTypography.eyebrow(
+                                context,
+                                color: colors.accent,
+                                fontSize: 9,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             Text(
                               '发现新版本',
                               style: theme.textTheme.headlineMedium,
@@ -239,7 +248,7 @@ class _AppUpdateDialog extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                     decoration: BoxDecoration(
                       color: colors.backgroundSoft.withValues(alpha: 0.56),
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       border: Border.all(color: colors.border),
                     ),
                     child: Column(
@@ -337,7 +346,7 @@ class _UpdateTagBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: colors.panel.withValues(alpha: 0.68),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: colors.borderStrong.withValues(alpha: 0.45)),
       ),
       child: Text(
@@ -365,7 +374,7 @@ class _VersionTransitionPanel extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: colors.heroGradient,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.panel),
         border: Border.all(color: colors.borderStrong.withValues(alpha: 0.45)),
       ),
       child: Row(
@@ -427,7 +436,7 @@ class _VersionValueCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: colors.panel.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -440,10 +449,7 @@ class _VersionValueCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             value,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: accent,
-              fontWeight: FontWeight.w700,
-            ),
+            style: AppTypography.readout(color: accent, fontSize: 22),
           ),
         ],
       ),

@@ -45,7 +45,7 @@ class _RecentHistoryDialogState extends ConsumerState<RecentHistoryDialog> {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong),
         ),
         child: Column(
@@ -153,9 +153,9 @@ class RecentHistoryListTile extends StatelessWidget {
     if (compact) {
       return Material(
         color: colors.panelRaised.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           onTap: () => showHistoryEntryDialog(context, entry: entry),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -207,9 +207,9 @@ class RecentHistoryListTile extends StatelessWidget {
 
     return Material(
       color: colors.panelRaised.withValues(alpha: 0.82),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         onTap: () => showHistoryEntryDialog(context, entry: entry),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -263,7 +263,7 @@ class RecentHistoryListTile extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: colors.backgroundSoft.withValues(alpha: 0.78),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.chip),
                     border: Border.all(color: colors.border),
                   ),
                   child: Text(

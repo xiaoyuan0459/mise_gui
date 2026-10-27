@@ -18,12 +18,30 @@ class MetricTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           StatusBadge(label: metric.label, level: metric.level),
-          const SizedBox(height: 18),
-          Text(metric.value, style: Theme.of(context).textTheme.displaySmall),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              metric.value,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.displaySmall,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 1,
+            width: 28,
+            color: colors.border.withValues(alpha: 0.8),
+          ),
+          const SizedBox(height: 12),
           Text(
             metric.caption,
-            style: TextStyle(color: colors.textMuted, height: 1.45),
+            style: TextStyle(
+              color: colors.textMuted,
+              fontSize: 12.5,
+              height: 1.5,
+            ),
           ),
         ],
       ),

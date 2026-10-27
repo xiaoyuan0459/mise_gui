@@ -30,7 +30,7 @@ class _HistoryEntryDialog extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 980, maxHeight: 760),
         decoration: BoxDecoration(
           color: colors.panel,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
           border: Border.all(color: colors.borderStrong.withValues(alpha: 0.5)),
           boxShadow: [
             BoxShadow(
@@ -240,7 +240,7 @@ class _CommandBlock extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: colors.backgroundSoft.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           border: Border.all(color: colors.border.withValues(alpha: 0.34)),
         ),
         child: SelectableText(
@@ -284,7 +284,7 @@ class _LogPanel extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: colors.backgroundSoft.withValues(alpha: 0.62),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.control),
             border: Border.all(
               color: emphasize
                   ? colors.warning.withValues(alpha: 0.28)
@@ -331,7 +331,7 @@ class _SurfaceBlock extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.panelRaised.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(
           color: emphasize
               ? colors.warning.withValues(alpha: 0.24)

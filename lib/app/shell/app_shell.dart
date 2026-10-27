@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -81,10 +80,10 @@ class AppShell extends ConsumerWidget {
                 top: !immersiveMacDesktop,
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
-                    compact ? 16 : 24,
-                    compact ? 16 : (immersiveMacDesktop ? 10 : 24),
-                    compact ? 16 : 24,
-                    compact ? 16 : 24,
+                    compact ? 14 : 20,
+                    compact ? 14 : (immersiveMacDesktop ? 10 : 20),
+                    compact ? 14 : 20,
+                    compact ? 14 : 20,
                   ),
                   child: compact
                       ? _ContentPanel(
@@ -102,7 +101,7 @@ class AppShell extends ConsumerWidget {
                               const _DesktopChromeBar()
                             else
                               const _TopBar(),
-                            SizedBox(height: immersiveMacDesktop ? 14 : 20),
+                            SizedBox(height: immersiveMacDesktop ? 8 : 12),
                             Expanded(
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +114,7 @@ class AppShell extends ConsumerWidget {
                                         ? (_) {}
                                         : navigationShell.goBranch,
                                   ),
-                                  const SizedBox(width: 20),
+                                  const SizedBox(width: 16),
                                   Expanded(
                                     child: _ContentPanel(
                                       child: miseAvailableValue.when(
@@ -155,6 +154,13 @@ class _DesktopChromeBar extends StatelessWidget {
         children: [
           Positioned.fill(left: 92, child: _WindowChromeDoubleTapRegion()),
           Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.only(left: 96),
+              child: _StatusReadout(),
+            ),
+          ),
+          Align(
             alignment: Alignment.centerRight,
             child: Padding(
               padding: EdgeInsets.only(left: 92),
@@ -184,171 +190,202 @@ class _Sidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppTheme.colorsOf(context);
     final appVersion = ref.watch(appVersionInfoProvider);
-    final sidebarWidth = expanded ? 280.0 : 112.0;
-    final sidebarPadding = expanded ? 18.0 : 12.0;
-    final brandPadding = expanded ? 16.0 : 10.0;
-    final compactBrandSize = expanded ? 92.0 : 54.0;
+    final sidebarWidth = expanded ? 268.0 : 92.0;
+    final sidebarPadding = expanded ? 14.0 : 10.0;
 
     return SizedBox(
       width: sidebarWidth,
       child: AppPanel(
-        padding: EdgeInsets.all(sidebarPadding),
-        radius: 24,
-        backgroundAlpha: 0.72,
-        borderAlpha: 0.48,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Column(
-              crossAxisAlignment: expanded
-                  ? CrossAxisAlignment.start
-                  : CrossAxisAlignment.center,
+        padding: EdgeInsets.fromLTRB(
+          sidebarPadding,
+          expanded ? 18 : 16,
+          sidebarPadding,
+          expanded ? 14 : 12,
+        ),
+        radius: AppRadius.panel,
+        backgroundAlpha: 0.88,
+        borderAlpha: 0.62,
+        child: Column(
+          crossAxisAlignment: expanded
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: expanded
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
+                  children: [
+                    if (expanded)
+                      const _BrandLockup()
+                    else
+                      const Center(child: _BrandBadge(size: 40)),
+                    SizedBox(height: expanded ? 20 : 16),
+                    Container(
+                      height: 1,
+                      color: colors.border.withValues(alpha: 0.7),
+                    ),
+                    SizedBox(height: expanded ? 16 : 14),
+                    if (expanded) ...[
+                      Row(
+                        children: [
+                          Text(
+                            'NAVIGATION',
+                            style: AppTypography.eyebrow(context, fontSize: 9),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '04',
+                            style: AppTypography.mono(
+                              color: colors.textMuted.withValues(alpha: 0.7),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    for (final destination in AppDestination.values)
+                      _SidebarDestinationBlock(
+                        destination: destination,
+                        currentIndex: currentIndex,
+                        expanded: expanded,
+                        locked: locked,
+                        onSelect: onSelect,
+                      ),
+                    if (expanded) ...[
+                      const SizedBox(height: 18),
+                      _SidebarRuntimeStrip(locked: locked),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SidebarFooter(
+              expanded: expanded,
+              locked: locked,
+              versionLabel: appVersion.maybeWhen(
+                data: (value) => value.shortLabel,
+                orElse: () => 'v1.0.0',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandLockup extends StatelessWidget {
+  const _BrandLockup();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return Row(
+      children: [
+        const _BrandBadge(size: 38),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MISE GUI',
+                style: AppTypography.mono(
+                  color: colors.textPrimary,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.4,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'LOCAL ENV CONSOLE',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.eyebrow(
+                  context,
+                  fontSize: 8,
+                ).copyWith(letterSpacing: 1.5),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SidebarRuntimeStrip extends StatelessWidget {
+  const _SidebarRuntimeStrip({required this.locked});
+
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppTheme.colorsOf(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MANAGED RUNTIMES',
+          style: AppTypography.eyebrow(context, fontSize: 8.5),
+        ),
+        const SizedBox(height: 10),
+        const Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _RuntimePill(label: 'JAVA'),
+            _RuntimePill(label: 'PYTHON'),
+            _RuntimePill(label: 'GO'),
+            _RuntimePill(label: 'NODE'),
+            _RuntimePill(label: 'FLUTTER'),
+            _RuntimePill(label: '+'),
+          ],
+        ),
+        if (locked) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.warning.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 14,
+                  color: colors.warning,
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: expanded
-                          ? CrossAxisAlignment.start
-                          : CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.fromLTRB(
-                            brandPadding,
-                            brandPadding,
-                            brandPadding,
-                            expanded ? 14 : brandPadding,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: expanded
-                                ? LinearGradient(
-                                    colors: [
-                                      colors.panelRaised.withValues(alpha: 0.2),
-                                      colors.accent.withValues(alpha: 0.07),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : null,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: expanded
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const _BrandBadge(size: 92),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Mise GUI',
-                                      style: TextStyle(
-                                        fontFamily: kMonoFontFamily,
-                                        fontFamilyFallback: kMonoFontFallback,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      '本地环境统一管理',
-                                      style: TextStyle(color: colors.textMuted),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      '集中管理常用语言、工具链和项目版本差异。',
-                                      style: TextStyle(
-                                        color: colors.textMuted,
-                                        fontSize: 13,
-                                        height: 1.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    const Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        _RuntimePill(label: 'Java'),
-                                        _RuntimePill(label: 'Python'),
-                                        _RuntimePill(label: 'Go'),
-                                        _RuntimePill(label: 'Node'),
-                                        _RuntimePill(label: 'Flutter'),
-                                        _RuntimePill(label: '更多工具链'),
-                                      ],
-                                    ),
-                                    if (locked) ...[
-                                      const SizedBox(height: 14),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: colors.warning.withValues(
-                                            alpha: 0.12,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          border: Border.all(
-                                            color: colors.warning.withValues(
-                                              alpha: 0.26,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.lock_outline_rounded,
-                                              size: 16,
-                                              color: colors.warning,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Text(
-                                                '先安装 mise，左侧导航会自动解锁。',
-                                                style: TextStyle(
-                                                  color: colors.textPrimary,
-                                                  fontSize: 12,
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                )
-                              : Center(
-                                  child: _BrandBadge(size: compactBrandSize),
-                                ),
-                        ),
-                        const SizedBox(height: 20),
-                        for (final destination in AppDestination.values)
-                          _SidebarDestinationBlock(
-                            destination: destination,
-                            currentIndex: currentIndex,
-                            expanded: expanded,
-                            locked: locked,
-                            onSelect: onSelect,
-                          ),
-                      ],
+                  child: Text(
+                    '先安装 mise，导航会自动解锁。',
+                    style: TextStyle(
+                      color: colors.textMuted,
+                      fontSize: 11.5,
+                      height: 1.45,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                _SidebarFooter(
-                  expanded: expanded,
-                  compactWidth: constraints.maxWidth,
-                  versionLabel: appVersion.maybeWhen(
-                    data: (value) => value.shortLabel,
-                    orElse: () => 'v1.0.0',
-                  ),
-                ),
               ],
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -356,43 +393,80 @@ class _Sidebar extends ConsumerWidget {
 class _SidebarFooter extends StatelessWidget {
   const _SidebarFooter({
     required this.expanded,
-    required this.compactWidth,
+    required this.locked,
     required this.versionLabel,
   });
 
   final bool expanded;
-  final double compactWidth;
+  final bool locked;
   final String versionLabel;
 
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.colorsOf(context);
-    final style = TextStyle(
-      color: colors.textMuted.withValues(alpha: 0.82),
-      fontSize: 11,
-      fontFamily: kMonoFontFamily,
-      fontFamilyFallback: kMonoFontFallback,
+    final stateColor = locked ? colors.warning : colors.accent;
+    final stateLabel = locked ? 'MISE OFFLINE' : 'MISE LINKED';
+    final versionStyle = AppTypography.mono(
+      color: colors.textMuted.withValues(alpha: 0.8),
+      fontSize: 9.5,
       fontWeight: FontWeight.w600,
+      height: 1.2,
+      letterSpacing: 0.8,
     );
 
-    if (expanded) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Text('版本 $versionLabel', style: style),
+    final dot = Container(
+      width: 5,
+      height: 5,
+      decoration: BoxDecoration(
+        color: stateColor,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: stateColor.withValues(alpha: 0.6), blurRadius: 6),
+        ],
+      ),
+    );
+
+    if (!expanded) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          dot,
+          const SizedBox(height: 8),
+          Text(
+            versionLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: versionStyle.copyWith(fontSize: 8.5),
+          ),
+        ],
       );
     }
 
-    return Center(
-      child: SizedBox(
-        width: compactWidth,
-        child: Text(
-          versionLabel,
-          maxLines: 1,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: style,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            dot,
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                stateLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.eyebrow(
+                  context,
+                  color: stateColor,
+                  fontSize: 8.5,
+                ).copyWith(letterSpacing: 1.3),
+              ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: 6),
+        Text('BUILD $versionLabel', style: versionStyle),
+      ],
     );
   }
 }
@@ -419,7 +493,7 @@ class _SidebarDestinationBlock extends ConsumerWidget {
     final activeSection = ref.watch(selectedConfigSectionProvider);
 
     final main = Padding(
-      padding: EdgeInsets.only(bottom: isConfig ? 2 : 8),
+      padding: const EdgeInsets.only(bottom: 2),
       child: _SidebarDestination(
         destination: destination,
         expanded: expanded,
@@ -438,7 +512,7 @@ class _SidebarDestinationBlock extends ConsumerWidget {
       children: [
         main,
         Padding(
-          padding: const EdgeInsets.only(left: 22, bottom: 8, top: 2),
+          padding: const EdgeInsets.only(left: 26, bottom: 8, top: 2),
           child: _SidebarConfigChildren(
             currentIndex: currentIndex,
             activeSection: activeSection,
@@ -466,66 +540,75 @@ class _SidebarConfigChildren extends ConsumerWidget {
     final colors = AppTheme.colorsOf(context);
     final active = currentIndex == AppDestination.config.index;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final section in ConfigSection.values)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Material(
-              color: active && section == activeSection
-                  ? colors.accent.withValues(alpha: 0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                onTap: () {
-                  ref.read(selectedConfigSectionProvider.notifier).state =
-                      section;
-                  onSelect(AppDestination.config.index);
-                },
-                borderRadius: BorderRadius.circular(10),
-                hoverColor: active ? colors.hover : Colors.transparent,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: active && section == activeSection
-                              ? colors.accent
-                              : colors.textMuted.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          section.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+    return Container(
+      padding: const EdgeInsets.only(left: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: colors.border.withValues(alpha: 0.75)),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (index, section) in ConfigSection.values.indexed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Material(
+                color: active && section == activeSection
+                    ? colors.accent.withValues(alpha: 0.10)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                child: InkWell(
+                  onTap: () {
+                    ref.read(selectedConfigSectionProvider.notifier).state =
+                        section;
+                    onSelect(AppDestination.config.index);
+                  },
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  hoverColor: active ? colors.hover : Colors.transparent,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          '0${index + 1}',
+                          style: AppTypography.mono(
                             color: active && section == activeSection
-                                ? colors.textPrimary
-                                : colors.textMuted,
-                            fontSize: 12.5,
-                            fontWeight: active && section == activeSection
-                                ? FontWeight.w700
-                                : FontWeight.w500,
+                                ? colors.accent
+                                : colors.textMuted.withValues(alpha: 0.6),
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.4,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            section.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: active && section == activeSection
+                                  ? colors.textPrimary
+                                  : colors.textMuted,
+                              fontSize: 12,
+                              fontWeight: active && section == activeSection
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -550,94 +633,109 @@ class _SidebarDestination extends StatelessWidget {
     final icon = selected ? destination.selectedIcon : destination.icon;
     final colors = AppTheme.colorsOf(context);
 
+    final indexLabel = '0${destination.index + 1}';
+    final iconColor = locked
+        ? colors.textMuted.withValues(alpha: 0.65)
+        : selected
+        ? colors.accent
+        : colors.textMuted;
+
     return Tooltip(
       message: destination.label,
       child: Material(
         color: selected
-            ? colors.accent.withValues(alpha: 0.14)
+            ? colors.accent.withValues(alpha: 0.09)
             : locked
-            ? colors.panelMuted.withValues(alpha: 0.34)
+            ? colors.panelMuted.withValues(alpha: 0.22)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: locked ? null : onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.chip),
           hoverColor: locked ? Colors.transparent : colors.hover,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: expanded ? 14 : 8,
-              vertical: 14,
-            ),
-            child: Row(
-              mainAxisAlignment: expanded
-                  ? MainAxisAlignment.start
-                  : MainAxisAlignment.center,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: expanded ? 42 : 40,
-                  height: expanded ? 42 : 40,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? colors.accent.withValues(alpha: 0.18)
-                        : locked
-                        ? colors.panel.withValues(alpha: 0.62)
-                        : colors.panelRaised.withValues(alpha: 0.58),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(
-                      color: selected
-                          ? colors.accent.withValues(alpha: 0.45)
-                          : locked
-                          ? colors.borderStrong.withValues(alpha: 0.26)
-                          : colors.border.withValues(alpha: 0.34),
-                    ),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: selected
-                        ? colors.accent
-                        : locked
-                        ? colors.textMuted
-                        : colors.textPrimary,
-                  ),
+          child: Stack(
+            children: [
+              if (selected)
+                Positioned(
+                  left: 0,
+                  top: 8,
+                  bottom: 8,
+                  child: Container(width: 2, color: colors.accent),
                 ),
-                if (expanded) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          destination.label,
-                          style: TextStyle(
-                            color: locked
-                                ? colors.textMuted
-                                : colors.textPrimary,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                          ),
+              Padding(
+                padding: expanded
+                    ? const EdgeInsets.fromLTRB(12, 10, 10, 10)
+                    : const EdgeInsets.symmetric(vertical: 13),
+                child: Row(
+                  mainAxisAlignment: expanded
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 19, color: iconColor),
+                    if (expanded) ...[
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              destination.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: locked
+                                    ? colors.textMuted
+                                    : selected
+                                    ? colors.textPrimary
+                                    : colors.textPrimary.withValues(
+                                        alpha: 0.86,
+                                      ),
+                                fontSize: 13,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              destination.description,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.textMuted.withValues(alpha: 0.85),
+                                fontSize: 10.5,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          destination.description,
-                          style: TextStyle(
-                            color: colors.textMuted,
-                            fontSize: 12,
-                          ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        indexLabel,
+                        style: AppTypography.mono(
+                          color: selected
+                              ? colors.accent
+                              : colors.textMuted.withValues(alpha: 0.55),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      if (locked) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 13,
+                          color: colors.textMuted,
                         ),
                       ],
-                    ),
-                  ),
-                  if (locked)
-                    Icon(
-                      Icons.lock_outline_rounded,
-                      size: 16,
-                      color: colors.textMuted,
-                    ),
-                ],
-              ],
-            ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -655,9 +753,13 @@ class _ContentPanel extends StatelessWidget {
     final colors = AppTheme.colorsOf(context);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: ColoredBox(
-        color: colors.panel.withValues(alpha: 0.24),
+      borderRadius: BorderRadius.circular(AppRadius.panel),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.panel.withValues(alpha: 0.26),
+          borderRadius: BorderRadius.circular(AppRadius.panel),
+          border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        ),
         child: child,
       ),
     );
@@ -670,16 +772,87 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      height: 44,
+      height: 42,
       child: Stack(
         children: [
           Positioned.fill(child: _WindowChromeDoubleTapRegion()),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: _StatusReadout(),
+            ),
+          ),
           Align(
             alignment: Alignment.centerRight,
             child: _TopMetaRow(compact: false),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 顶栏左侧的 CLI 连接状态读数。
+class _StatusReadout extends ConsumerWidget {
+  const _StatusReadout();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppTheme.colorsOf(context);
+    final miseAvailable = ref.watch(miseAvailableProvider);
+    final loading = miseAvailable.isLoading;
+    final linked = miseAvailable.maybeWhen(
+      data: (value) => value,
+      orElse: () => false,
+    );
+    final signalColor = loading
+        ? colors.textMuted
+        : linked
+        ? colors.accent
+        : colors.warning;
+    final label = loading
+        ? 'CHECKING'
+        : linked
+        ? 'LINKED'
+        : 'MISSING';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(
+            color: signalColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: signalColor.withValues(alpha: 0.7),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text('MISE CLI', style: AppTypography.eyebrow(context, fontSize: 9)),
+        const SizedBox(width: 8),
+        Container(
+          width: 1,
+          height: 10,
+          color: colors.border.withValues(alpha: 0.9),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: AppTypography.mono(
+            color: signalColor,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -715,36 +888,46 @@ class _TopMetaRow extends ConsumerWidget {
       runSpacing: spacing,
       crossAxisAlignment: WrapCrossAlignment.center,
       alignment: WrapAlignment.end,
-      children: const [_ToolbarGlassGroup()],
+      children: const [_ToolbarGroup()],
     );
   }
 }
 
-class _ToolbarGlassGroup extends ConsumerWidget {
-  const _ToolbarGlassGroup();
+class _ToolbarGroup extends ConsumerWidget {
+  const _ToolbarGroup();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppTheme.colorsOf(context);
     final themePreference = ref.watch(themePreferenceProvider);
 
-    return _ToolbarGlassPanel(
-      padding: const EdgeInsets.all(6),
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.panelRaised.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppRadius.control + 1),
+        border: Border.all(color: colors.border.withValues(alpha: 0.9)),
+      ),
       child: SegmentedButton<AppThemePreference>(
         showSelectedIcon: false,
+        style: const ButtonStyle(
+          visualDensity: VisualDensity(horizontal: -2, vertical: -3),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
         segments: const [
           ButtonSegment<AppThemePreference>(
             value: AppThemePreference.system,
-            icon: Icon(Icons.brightness_auto_rounded),
+            icon: Icon(Icons.brightness_auto_rounded, size: 16),
             label: Text('系统'),
           ),
           ButtonSegment<AppThemePreference>(
             value: AppThemePreference.light,
-            icon: Icon(Icons.light_mode_rounded),
+            icon: Icon(Icons.light_mode_rounded, size: 16),
             label: Text('浅色'),
           ),
           ButtonSegment<AppThemePreference>(
             value: AppThemePreference.dark,
-            icon: Icon(Icons.dark_mode_rounded),
+            icon: Icon(Icons.dark_mode_rounded, size: 16),
             label: Text('深色'),
           ),
         ],
@@ -758,52 +941,6 @@ class _ToolbarGlassGroup extends ConsumerWidget {
   }
 }
 
-class _ToolbarGlassPanel extends StatelessWidget {
-  const _ToolbarGlassPanel({required this.child, required this.padding});
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppTheme.colorsOf(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colors.panelRaised.withValues(alpha: isDark ? 0.58 : 0.76),
-                colors.backgroundSoft.withValues(alpha: isDark ? 0.48 : 0.62),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: colors.borderStrong.withValues(
-                alpha: isDark ? 0.34 : 0.22,
-              ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: colors.backgroundDeep.withValues(
-                  alpha: isDark ? 0.16 : 0.06,
-                ),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Padding(padding: padding, child: child),
-        ),
-      ),
-    );
-  }
-}
-
 class _BrandBadge extends StatelessWidget {
   const _BrandBadge({required this.size});
 
@@ -812,7 +949,7 @@ class _BrandBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(9),
       child: SvgPicture.asset(
         'assets/branding/mise_gui_logo.svg',
         width: size,
@@ -833,19 +970,20 @@ class _RuntimePill extends StatelessWidget {
     final colors = AppTheme.colorsOf(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: colors.panelRaised.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colors.borderStrong.withValues(alpha: 0.2)),
+        color: colors.panelMuted.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: colors.borderStrong.withValues(alpha: 0.35)),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 11,
+        style: AppTypography.mono(
+          color: colors.textMuted,
+          fontSize: 8.5,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.2,
+          height: 1.2,
+          letterSpacing: 0.9,
         ),
       ),
     );
@@ -962,8 +1100,10 @@ class _MissingMiseExperienceState
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: colors.borderStrong),
+                borderRadius: BorderRadius.circular(AppRadius.panel),
+                border: Border.all(
+                  color: colors.borderStrong.withValues(alpha: 0.75),
+                ),
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -1048,18 +1188,47 @@ class _MissingHeroText extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: colors.warning,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Text(
+              'SETUP REQUIRED',
+              style: AppTypography.eyebrow(
+                context,
+                color: colors.textMuted,
+                fontSize: 10,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Container(
+                height: 1,
+                color: colors.border.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         Text('这台电脑还没有安装 mise', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(height: 14),
         Text(
           'Mise GUI 依赖可用的 mise CLI 才能读取工具版本、项目覆盖关系和全局配置。先完成安装，右侧这些功能就会自动解锁。',
-          style: TextStyle(color: colors.textMuted, fontSize: 16, height: 1.65),
+          style: TextStyle(color: colors.textMuted, fontSize: 15, height: 1.7),
         ),
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: colors.panel.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(AppRadius.panel),
             border: Border.all(color: colors.border),
           ),
           child: Column(
@@ -1072,9 +1241,9 @@ class _MissingHeroText extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: colors.accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
                       border: Border.all(
-                        color: colors.accent.withValues(alpha: 0.24),
+                        color: colors.accent.withValues(alpha: 0.28),
                       ),
                     ),
                     child: Icon(Icons.terminal_rounded, color: colors.accent),
@@ -1177,7 +1346,7 @@ class _InstallCommandCard extends StatelessWidget {
                     ? 0.54
                     : 0.82,
               ),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               border: Border.all(color: colors.borderStrong),
             ),
             child: SelectableText(
@@ -1242,7 +1411,7 @@ class _MissingMiseFooterBand extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.panel.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(AppRadius.panel),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -1310,7 +1479,7 @@ class _FooterFeatureTile extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.backgroundSoft.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.panel),
         border: Border.all(color: colors.border.withValues(alpha: 0.9)),
       ),
       child: Row(
@@ -1321,8 +1490,8 @@ class _FooterFeatureTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: colors.info.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.info.withValues(alpha: 0.2)),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              border: Border.all(color: colors.info.withValues(alpha: 0.24)),
             ),
             child: Icon(icon, color: colors.info, size: 20),
           ),
@@ -1369,8 +1538,8 @@ class _StepRow extends StatelessWidget {
           height: 42,
           decoration: BoxDecoration(
             color: colors.accent.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.accent.withValues(alpha: 0.24)),
+            borderRadius: BorderRadius.circular(AppRadius.chip),
+            border: Border.all(color: colors.accent.withValues(alpha: 0.28)),
           ),
           alignment: Alignment.center,
           child: Text(

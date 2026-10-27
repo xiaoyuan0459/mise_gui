@@ -35,14 +35,14 @@ class PanelHeader extends StatelessWidget {
       children: [
         if (icon != null) ...[
           Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: accentColor.withValues(alpha: 0.22)),
+              color: accentColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadius.chip),
+              border: Border.all(color: accentColor.withValues(alpha: 0.28)),
             ),
-            child: Icon(icon, size: 18, color: accentColor),
+            child: Icon(icon, size: 17, color: accentColor),
           ),
           const SizedBox(width: 12),
         ],
