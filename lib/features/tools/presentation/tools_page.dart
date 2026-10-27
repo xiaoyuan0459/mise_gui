@@ -1879,10 +1879,21 @@ class _ToolAccordionItem extends StatelessWidget {
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
-            return SizeTransition(
-              sizeFactor: animation,
-              alignment: Alignment.topCenter,
-              child: FadeTransition(opacity: animation, child: child),
+            // 用 ClipRect + Align 实现纵向展开，兼容 Flutter 3.41（该版本
+            // 尚无 SizeTransition.alignment，axisAlignment 又已弃用）。
+            return AnimatedBuilder(
+              animation: animation,
+              builder: (context, expandedChild) => ClipRect(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  heightFactor: animation.value,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: expandedChild,
+                  ),
+                ),
+              ),
+              child: child,
             );
           },
           child: detail,
