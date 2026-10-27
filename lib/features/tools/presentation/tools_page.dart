@@ -1881,7 +1881,7 @@ class _ToolAccordionItem extends StatelessWidget {
           transitionBuilder: (child, animation) {
             return SizeTransition(
               sizeFactor: animation,
-              axisAlignment: -1,
+              alignment: Alignment.topCenter,
               child: FadeTransition(opacity: animation, child: child),
             );
           },
